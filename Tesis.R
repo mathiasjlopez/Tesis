@@ -5,6 +5,7 @@ install.packages("tidyverse")
 install.packages("matrix")
 install.packages("DHARMa")
 install.packages("psych")
+install.packages("car")
 
 library(lme4)
 library(glmmTMB)
@@ -12,6 +13,7 @@ library(tidyverse)
 library(ggplot2)
 library(DHARMa)
 library(psych)
+library(car)
 
 ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
@@ -24,11 +26,12 @@ NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header 
 
 # Pasamos a factor todas las variables:
 
+str(ENFR_temporal)
 ENFR_temporal$Año_Edicion <- factor(ENFR_temporal$Año_Edicion)
 
 ENFR_temporal$Provincia <- factor(ENFR_temporal$Provincia)
 
-ENFR_temporal$Sexo <- factor(ENFR_temporal$Sexo)
+ENFR_temporal$Genero <- factor(ENFR_temporal$Genero)
 
 ENFR_temporal$Nivel_de_instrucción <- factor(ENFR_temporal$Nivel_de_instrucción)
 
@@ -42,15 +45,12 @@ ENFR_temporal$Quintil_ingresos <- factor(ENFR_temporal$Quintil_ingresos)
 
 ENFR_temporal$Promedio_fv_Diario_Dic <- factor(ENFR_temporal$Promedio_fv_Diario_Dic)
 
-
-# Pasamos los casos de "No_cumple" -> 0 y "Cumple" -> 1 de la variable "Promedio_fv_Diario_Dic":
-table(ENFR_temporal$Promedio_fv_Diario_Dic)
-
-ENFR_temporal <-ENFR_temporal %>%
-  filter( Promedio_fv_Diario_Dic != "<NA>") %>% 
-  mutate( Cumple_No_Cumple_FyV = ifelse(Promedio_fv_Diario_Dic == "Cumple", 1, 0))
-
 ENFR_temporal$Cumple_No_Cumple_FyV<- factor(ENFR_temporal$Cumple_No_Cumple_FyV)
+
+# Transformamos Edad a numerico:
+
+ENFR_temporal$Edad <- as.numeric(ENFR_temporal$Edad)
+
 
 ###_____________________________________________________________________________
 
@@ -69,9 +69,42 @@ lapply(df_Años, summary)
 #---
 names(ENFR_temporal)
 str(ENFR_temporal)
+
+
+#---
+
+# La variable "Edad" da problemas, hacemos una exploracion de ella:
+
+# Resumen y detección de outliers
+summary(ENFR_temporal$Edad) # Hay un maximo de 104 años que por ahi esta generando problemas.
+boxplot(ENFR_temporal$Edad) # En el boxplot se ve que ese valor es un outlier.
+hist(ENFR_temporal$Edad)
+# Cuantas personas con edad > 100 años hay?
+
+ENFR_temporal %>% 
+  select(Edad) %>% 
+  filter( Edad >= 100) %>% 
+  summarise(count = n()) # Hay una sola persona >= 100 años
+
+ENFR_temporal %>% 
+  select(Edad) %>% 
+  filter( Edad == 100) %>% 
+  summarise(count = n()) # No hay personas con 100 años
+
+ENFR_temporal %>% 
+  select(Edad) %>% 
+  filter( Edad >= 90 & Edad <= 100 ) %>% 
+  summarise(count = n()) # Hay unas 357 personas con edad entre los 90 y 100 años.
+
+ENFR_temporal <- ENFR_temporal %>% 
+  filter( Edad != 104) #Elimine a esa persona de de 104 años
+# No hubo resultados con lo hecho hasta aca, voy a reescalar la variable para ver si ahora me da:
+ENFR_temporal$Edad_escalada <- scale(ENFR_temporal$Edad)
+
+
+#---
+
 # Graficos para las variables cuantis: Scatter plot (grafico de dispersion), Histograma, box plot
-
-
 
 
 # Graficos para las variables cualis: Bar plot
@@ -170,34 +203,41 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T)
  
  
- # Modelos simple con Nivel_de_instrucción como V E F mas Provincia como V E A: 
+# Modelos simple con Nivel_de_instrucción como V E F mas Provincia como V E A: 
 table(ENFR_temporal$Nivel_de_instrucción) 
+
 m1b <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
- summary(m1b)
- anova(m1b) 
+summary(m1b)
+anova(m1b) 
  
- simulationOutput <- simulateResiduals(fittedModel = m1b, plot = T)
+simulationOutput <- simulateResiduals(fittedModel = m1b, plot = T)
  
- # Modelos simple con Edad como V E F mas Provincia como V E A:
- m1c <- glmer( Cumple_No_Cumple_FyV ~  Edad, ENFR_temporal + (1|Provincia ), family = binomial)
- summary(m1b)
- anova(m1b)
+# Modelos simple con Edad como V E F mas Provincia como V E A:
+m1c <- glmer( Cumple_No_Cumple_FyV ~  Edad_escalada + (1 | Provincia ), ENFR_temporal , family = binomial)
+
+# Ver colinealidad de edad:
+vif_modelo <- vif(lm(Edad ~ ., data = ENFR_temporal))
+print(vif_modelo)
+
+summary(m1b)
+
  
- simulationOutput <- simulateResiduals(fittedModel = m1c, plot = T)
+simulationOutput <- simulateResiduals(fittedModel = m1c, plot = T)
+windows()
+# Modelos simple con Sexo como V E F mas Provincia como V E A:
+m1d <- glmer( Cumple_No_Cumple_FyV ~  Sexo + (1|Provincia ), ENFR_temporal , family = binomial)
+
+summary(m1d)
+anova(m1d)
  
- # Modelos simple con Sexo como V E F mas Provincia como V E A:
- m1d <- glmer( Cumple_No_Cumple_FyV ~  Sexo, ENFR_temporal + (1|Provincia ), family = binomial)
- summary(m1d)
- anova(m1d)
- 
- simulationOutput <- simulateResiduals(fittedModel = m1d, plot = T)
+simulationOutput <- simulateResiduals(fittedModel = m1d, plot = T)
  
  # Modelos simple con Sit_laboral como V E F mas Provincia como V E A:
- m1e <- glmer( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
- summary(m1d)
- anova(m1d)
+m1e <- glmer( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
+summary(m1d)
+anova(m1d)
  
- simulationOutput <- simulateResiduals(fittedModel = m1e, plot = T)
+simulationOutput <- simulateResiduals(fittedModel = m1e, plot = T)
  
  # Modelos simple con Cobertura_salud como V E F mas Provincia como V E A:
  m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
