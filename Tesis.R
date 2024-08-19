@@ -6,6 +6,8 @@ install.packages("matrix")
 install.packages("DHARMa")
 install.packages("psych")
 install.packages("car")
+install.packages("emmeans")
+
 
 library(lme4)
 library(glmmTMB)
@@ -14,6 +16,15 @@ library(ggplot2)
 library(DHARMa)
 library(psych)
 library(car)
+library(emmeans)
+#---
+# 1) git add .
+# 2) git commit -m "Descripción de los cambios"
+# 3) git push
+
+#---
+
+#_______________________________________________________________________________
 
 ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
@@ -22,14 +33,14 @@ NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header 
 
 #_______________________________________________________________________________
 
-# Algunos arreglos en el dataset:
+### Algunos arreglos en el dataset:
 
-# Pasamos a factor todas las variables:
+## Pasamos a factor todas las variables:
 
 str(ENFR_temporal)
-ENFR_temporal$Año_Edicion <- factor(ENFR_temporal$Año_Edicion)
+ENFR_temporal$Año_Edicion <- as.factor(ENFR_temporal$Año_Edicion)
 
-ENFR_temporal$Provincia <- factor(ENFR_temporal$Provincia)
+ENFR_temporal$Provincia <- as.factor(ENFR_temporal$Provincia)
 
 ENFR_temporal$Genero <- factor(ENFR_temporal$Genero)
 
@@ -47,9 +58,39 @@ ENFR_temporal$Promedio_fv_Diario_Dic <- factor(ENFR_temporal$Promedio_fv_Diario_
 
 ENFR_temporal$Cumple_No_Cumple_FyV<- factor(ENFR_temporal$Cumple_No_Cumple_FyV)
 
-# Transformamos Edad a numerico:
+#---
+## Transformamos Edad a numerico:
 
 ENFR_temporal$Edad <- as.numeric(ENFR_temporal$Edad)
+
+#---
+## Ver que onda los Na`s:
+
+sum(is.na(ENFR_temporal)) # La base de datos tiene 484 NA`s (RARO PORQUE NO HABIA ELIMINADO LOS NA´s DE LAS BASES INDIVIDUALES Y DEBERIAN HABER MAS)
+colSums(is.na(ENFR_temporal)) # Vienen de Ingreso_mensual_pesos_hogar + Quintil_ingresos
+
+#---
+## La variable Provincia esta dando problemas en los modelos, vamos a ver que onda:
+
+table(ENFR_temporal$Provincia)
+any(is.na(ENFR_temporal$Provincia)) # Provincia no tiene datos faltantes
+
+# Creamos variable provincia sin los datos de mayor pero y otro sin los datos de menor peso(datos registrados) para ver si esto gebera algo
+
+ENFR_temporal <-ENFR_temporal %>% 
+  filter( !(Provincia %in% c("Buenos Aires", )))
+
+# Filtrar provincias con menos datos
+provincias_pocas_datos <- c("Tierra del Fuego", "Santiago del Estero")  # Ajusta según el análisis
+
+# Subconjunto de datos con estas provincias
+ENFR_pocas_datos <- ENFR_temporal %>% 
+  filter(Provincia %in% provincias_pocas_datos)
+
+str(ENFR_pocas_datos)
+sum(is.na(ENFR_pocas_datos))
+
+ENFR_pocas_datos <- na.omit(ENFR_pocas_datos)
 
 
 ###_____________________________________________________________________________
@@ -97,7 +138,7 @@ ENFR_temporal %>%
   summarise(count = n()) # Hay unas 357 personas con edad entre los 90 y 100 años.
 
 ENFR_temporal <- ENFR_temporal %>% 
-  filter( Edad != 104) #Elimine a esa persona de de 104 años
+  filter( Edad != 104) #Elimina a esa persona de de 104 años
 # No hubo resultados con lo hecho hasta aca, voy a reescalar la variable para ver si ahora me da:
 ENFR_temporal$Edad_escalada <- scale(ENFR_temporal$Edad)
 
@@ -192,70 +233,315 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 #_______________________________________________________________________________
 
 
-### Modelos simples ###
+                         ### MODELOS SIMPLES ###
  str(ENFR_temporal)
 
-# Modelos simple con Año como V E F mas Provincia como V E A:
- m1a <- glmer( Cumple_No_Cumple_FyV ~ Año_Edicion + (1|Provincia ) , ENFR_temporal, family = binomial)
- summary(m1a)
- anova(m1a)
  
+ 
+### Modelos simple con Año como V E F:
+sum(is.na(ENFR_temporal$Año_Edicion))
+sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
+
+m1a <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion , ENFR_temporal, family = binomial)
+ 
+## Supuestos: 
 simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T)
+
+## Salidas estadisticas: 
+summary(m1a)
+Anova(m1a) # Anova con "A" mayuscula para modelos lineales generalizados, con "a" en minuscula para mlgenerales
+
+## Comparaciones : emmeans
+# Comparasiones en escala de logit:
+emmeans(m1a, pairswise ~ Año_Edicion) # Es el que usan en clase y no funciona
+
+pairs(emmeans(m1a,~ Año_Edicion )) # Funciona
+# Comparacion en escala de la VR:
+pairs(emmeans(m1a, ~ Año_Edicion, type = "response"))
+
+# Intervalos de confianza: pasamos del estudio a la poblacion.
+confint(m1a)
+
+## Modelos simple con Año como V E F mas Provincia como V E A:
+
+m1a1 <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion + (1 | Provincia )  , ENFR_pocas_datos, family = binomial)
+
+
+## Supuestos: 
+simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+# Residuales en funcion de cada variable predictora: "plotresidual( simulado, var predic)"
+
+#-------------------------------------------------------------------------------
  
- 
-# Modelos simple con Nivel_de_instrucción como V E F mas Provincia como V E A: 
+### Modelos simple con Nivel_de_instrucción como V E F mas Provincia como V E A: 
 table(ENFR_temporal$Nivel_de_instrucción) 
 
-m1b <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
-summary(m1b)
-anova(m1b) 
- 
+m1b1 <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
+
+m1b <- glmmTMB( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción, ENFR_temporal, family = binomial)
+
+## Supuestos: 
+
 simulationOutput <- simulateResiduals(fittedModel = m1b, plot = T)
- 
-# Modelos simple con Edad como V E F mas Provincia como V E A:
-m1c <- glmer( Cumple_No_Cumple_FyV ~  Edad_escalada + (1 | Provincia ), ENFR_temporal , family = binomial)
 
-# Ver colinealidad de edad:
-vif_modelo <- vif(lm(Edad ~ ., data = ENFR_temporal))
-print(vif_modelo)
-
+## Salidas estadisticas: 
 summary(m1b)
+Anova(m1b) 
 
- 
+## Contrastes: 
+
+# Escala de PL:
+pairs(emmeans(m1b, ~ Nivel_de_instrucción ))
+
+# Escala de la VR:
+pairs(emmeans(m1b, ~ Nivel_de_instrucción, type = "response"))
+
+#-------------------------------------------------------------------------------
+### Modelos simple con Edad como V E F mas Provincia como V E A:
+m1c <- glmer( Cumple_No_Cumple_FyV ~  Edad + (1 | Provincia ), ENFR_temporal , family = binomial)
+
+m1c <- glmmTMB( Cumple_No_Cumple_FyV ~  Edad, ENFR_temporal , family = binomial)
+
+##  Supuestos: 
+
 simulationOutput <- simulateResiduals(fittedModel = m1c, plot = T)
 windows()
-# Modelos simple con Sexo como V E F mas Provincia como V E A:
-m1d <- glmer( Cumple_No_Cumple_FyV ~  Sexo + (1|Provincia ), ENFR_temporal , family = binomial)
 
-summary(m1d)
-anova(m1d)
- 
+# Linealidad de VR con el logit: tiene que guardar una relacion lineal con el log de odd
+# residuos <- residuals(m1c, type = "pearson")
+# plot(ENFR_temporal$Edad, residuos,
+#      xlab = "Edad",
+#      ylab = "Residuos de Pearson",
+#      main = "Residuos vs. Edad")
+# abline(h = 0, col = "red", lty = 2)
+
+
+## Salida de analisis estadistico
+summary(m1c)
+
+# Grafico predictivo:
+Prediccion_m1c <- predict(m1c, ENFR_temporal, type="response")
+
+ggplot( data = ENFR_temporal, mapping = aes( x = Edad, y = Prediccion_m1c ))+
+  geom_point() +
+  labs(
+    title = "Probabilidad estimada segun edad",
+    x = "Edad",
+    y = "Probabilidad, pedicha, Cumple/No_cumple"
+  )
+
+
+#-------------------------------------------------------------------------------
+### Modelos simple con Sexo como V E F mas Provincia como V E A:
+m1d <- glmer( Cumple_No_Cumple_FyV ~  Genero + (1|Provincia ), ENFR_temporal , family = binomial)
+
+m1d <- glmmTMB( Cumple_No_Cumple_FyV ~  Genero, ENFR_temporal , family = binomial)
+
+## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1d, plot = T)
  
- # Modelos simple con Sit_laboral como V E F mas Provincia como V E A:
-m1e <- glmer( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
+## Salidas de analisis estadistico:
 summary(m1d)
-anova(m1d)
- 
+Anova(m1d)
+
+## Comparaciones:
+
+# En escala del PL:
+pairs(emmeans(m1d, ~ Genero))
+
+# En escala de VR:
+pairs(emmeans(m1d, ~ Genero, type = "response"))
+
+#-------------------------------------------------------------------------------
+ # Modelos simple con Sit_laboral como V E F mas Provincia como V E A:
+m1e <- glmmTMB( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
+
+m1e <- glmmTMB( Cumple_No_Cumple_FyV ~  Sit_laboral, ENFR_temporal, family = binomial)
+
+## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1e, plot = T)
+
+## Salidas de analisis estadisticos:
+summary(m1e)
+Anova(m1e)
+
+## Comparaciones:
+
+# Escala del PL:
+pairs(emmeans(m1e, ~ Sit_laboral))
+
+# Escala de VR:
+pairs(emmeans(m1e, ~ Sit_laboral, type = "response"))
+
+#------------------------------------------------------------------------------- 
+### Modelos simple con Quintil_ingresos como V E F mas Provincia como V E A:
+m1g <- glmmTMB( Cumple_No_Cumple_FyV ~  Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial)
+
+m1g <- glmmTMB( Cumple_No_Cumple_FyV ~  Quintil_ingresos, ENFR_temporal, family = binomial)
+
+## Supuestos:
+simulationOutput <- simulateResiduals(fittedModel = m1g, plot = T)
+
+## Salidas de analisis estadisticos:
+Anova(m1g)
+
+## Comparaciones:
+# Escala del PL:
+pairs(emmeans(m1g, ~ Quintil_ingresos))
+
+# Escala de VR:
+pairs(emmeans(m1g, ~ Quintil_ingresos, type = "response"))
+#------------------------------------------------------------------------------- 
+
+### Modelos simple con Cobertura_salud como V E F mas Provincia como V E A: ESTE NO LO IBAMOS A USAR
+m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
+
+m1f <- glmmTMB( Cumple_No_Cumple_FyV ~  Cobertura_salud, ENFR_temporal, family = binomial)
+
+## Supuestos:
+simulationOutput <- simulateResiduals(fittedModel = m1f, plot = T)
  
- # Modelos simple con Cobertura_salud como V E F mas Provincia como V E A:
- m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
- summary(m1f)
- anova(m1f)
+## Salidas de analisis estadisticos:
+summary(m1f)
+Anova(m1f)
  
- simulationOutput <- simulateResiduals(fittedModel = m1f, plot = T)
+## Comparaciones:
  
- # Modelos simple con Quintil_ingresos como V E F mas Provincia como V E A:
- m1g <- glmer( Cumple_No_Cumple_FyV ~  Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial)
- summary(m1g)
- anova(m1g)
+# Escala del PL:
+pairs(emmeans(m1f, ~Cobertura_salud))
  
- simulationOutput <- simulateResiduals(fittedModel = m1g, plot = T)
+# Escala de VR:
+pairs(emmeans(m1f, ~Cobertura_salud, type = "response"))
+
+#------------------------------------------------------------------------------
+
+### Modelos simple con como V E F mas Provincia como V E A:
+m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = binomial)
  
- # Modelos simple con Año como V E F mas Provincia como V E A:
- m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = binomial)
- 
- 
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1h, plot = T)
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+#_______________________________________________________________________________ 
+ 
+
+                ### MODELOS MULTIPLES (mas de una variable) ###
+
+# M1a <-CFV ~ Genero + rango etario + año
+ M1a <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion, ENFR_temporal, family = binomial())
+
+ 
+## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = M1a, plot = T)
+ 
+## Salidas de analisis estadisticos:
+ 
+## Comparaciones:
+ 
+# Escala del PL:
+ 
+# Escala de VR:
+ 
+ 
+ #------------------------------------------------------------------------------
+ # M1b<-CFV ~ Genero + rango etario + año + de a una sumar las variables de NSE (max nivel alcanza) 
+ 
+ M1b <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion + , ENFR_temporal, family = binomial())
+ 
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ 
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+ 
+ 
+ 
+ 
+ 
+ #------------------------------------------------------------------------------
+ # M1c <-CFV ~ Genero + rango etario + año + Nivel educ
+ 
+ M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  + , ENFR_temporal, family = binomial())
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+ 
+ #------------------------------------------------------------------------------
+ # M1d <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso
+ M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  +  + , ENFR_temporal, family = binomial())
+ 
+ 
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+ 
+ #------------------------------------------------------------------------------
+ # M1e<-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+ 
+ #------------------------------------------------------------------------------
+ # M1f <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV + NBI M1 <Provincial
+ 
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
+ 
+ #------------------------------------------------------------------------------
+ # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+ 
+ ## Supuestos:
+ 
+ ## Salidas de analisis estadisticos:
+ 
+ ## Comparaciones:
+ 
+ # Escala del PL:
+ 
+ # Escala de VR:
  
