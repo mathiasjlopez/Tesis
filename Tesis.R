@@ -19,7 +19,7 @@ library(car)
 library(emmeans)
 #---
 # 1) git add .
-# 2) git commit -m "Descripción de los cambios"
+# 2) git commit -m "cambios del finde"
 # 3) git push
 
 #---
@@ -165,7 +165,7 @@ ggplot( data = ENFR_temporal, mapping = aes( x = Promedio_fv_Diario_Dic)) +
 ggplot( data = ENFR_temporal, mapping = aes( x = Promedio_fv_Diario_Dic, fill = Año_Edicion ))+ 
   geom_bar(position = "dodge")
 
-#Grafico de barras de "cumple o No" con el minimo recomendado separado por Genero:
+##Grafico de barras de "cumple o No" con el minimo recomendado separado por Genero:
 
 ggplot( data = na.omit(ENFR_temporal), mapping = aes( x = Promedio_fv_Diario_Dic, fill = Año_Edicion))+
   geom_bar(position = "dodge")+
@@ -182,6 +182,30 @@ ggplot( data = na.omit(ENFR_temporal), mapping = aes( x = Promedio_fv_Diario_Dic
         plot.subtitle = element_text(hjust = 0.5, size = 8),
         plot.caption = element_text(hjust = 0.5),
   )
+ 
+ # Calculamos la proporcion de Promedio_fv_Diario_Dic por cada año para graficarlo:
+
+Proporcion_CFyV <- ENFR_temporal %>%
+  group_by(Año_Edicion, Promedio_fv_Diario_Dic) %>%
+  summarise(count = n()) %>%
+  mutate(Proporcion = count / sum(count))
+
+ggplot( data = na.omit(Proporcion_CFyV), mapping = aes( x = Promedio_fv_Diario_Dic, y = Proporcion ,fill = Año_Edicion))+
+  geom_bar(stat = "identity", position = "dodge")+
+  labs( title = "Consumo de frutas y verduras en poblacion adulta Argentina",
+        subtitle = "Consumo munimo de tres porciones diarias recomendado por edicion",
+        x = "Consumo minimo recomendado diario",
+        y = "Frecuencia",
+        fill = "Edicion",
+        caption = "Fuente: Encuesta Nacional de Factores de Riesgo (Indec)")+
+  theme(axis.text = element_text(size = 7),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8),
+        plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 8),
+        plot.caption = element_text(hjust = 0.5),
+  )
+
 
 #Grafico de barras de "cumple o No" con el minimo recomendado separado por Genero y por año:
 
@@ -244,8 +268,10 @@ sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
 
 m1a <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion , ENFR_temporal, family = binomial)
  
-## Supuestos: 
+## Supuestos:
+
 simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T)
+# Variable de efectos aleatorios:
 
 ## Salidas estadisticas: 
 summary(m1a)
@@ -269,6 +295,8 @@ m1a1 <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion + (1 | Provincia )  , ENFR_
 
 ## Supuestos: 
 simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+# Variable de efectos aleatorios:
+
 # Residuales en funcion de cada variable predictora: "plotresidual( simulado, var predic)"
 
 #-------------------------------------------------------------------------------
@@ -433,41 +461,54 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
 
                 ### MODELOS MULTIPLES (mas de una variable) ###
 
+ 
+ 
 # M1a <-CFV ~ Genero + rango etario + año
  M1a <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion, ENFR_temporal, family = binomial())
 
  
 ## Supuestos:
+ 
  simulationOutput <- simulateResiduals(fittedModel = M1a, plot = T)
  
-## Salidas de analisis estadisticos:
+ # supuesto para variable cuanti: linealidad de edad con logit
+Logit_vs_edad <- glmmTMB(Cumple_No_Cumple_FyV ~ Edad, data = ENFR_temporal, family = binomial)
+
+logit_grafico <- predict(Logit_vs_edad, type = "link")  # Esto te da el logit (log-odds)
+ #grafico logit vs Edad:
+
+plot(ENFR_temporal$Edad, logit_grafico, xlab = "Edad", ylab = "Logit", main = "Relación entre Edad y Logit")
+abline(lm(logit_grafico ~ ENFR_temporal$Edad), col = "blue")
+
  
-## Comparaciones:
+## Colinealidad?
+ car::vif(M1a)
  
-# Escala del PL:
+ # Variable de efectos aleatorios:
  
-# Escala de VR:
+## Salidas de modelo:
+
+summary(M1a)
+ 
+## Comparaciones (?) 
+
+## Ajuste del modelo: AIC/BIC / Devianza explicada(simil Rcuadrado)
  
  
  #------------------------------------------------------------------------------
  # M1b<-CFV ~ Genero + rango etario + año + de a una sumar las variables de NSE (max nivel alcanza) 
  
  M1b <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion + , ENFR_temporal, family = binomial())
- 
- ## Supuestos:
+
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ # Colinealidad?
+ # Variable de efectos aleatorios: 
  
+## Salidas de modelo:
  
- ## Salidas de analisis estadisticos:
- 
- ## Comparaciones:
- 
- # Escala del PL:
- 
- # Escala de VR:
- 
- 
- 
+
+## Ajuste del modelo: AIC/BIC
  
  
  
@@ -475,73 +516,70 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
  # M1c <-CFV ~ Genero + rango etario + año + Nivel educ
  
  M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  + , ENFR_temporal, family = binomial())
- ## Supuestos:
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
  
- ## Salidas de analisis estadisticos:
+ # Variable de efectos aleatorios:
+ # Colinealidad?
  
- ## Comparaciones:
- 
- # Escala del PL:
- 
- # Escala de VR:
- 
+## Salidas de modelo:
+
+ ## Ajuste del modelo: AIC/BIC 
  
  #------------------------------------------------------------------------------
  # M1d <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso
  M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  +  + , ENFR_temporal, family = binomial())
  
  
- ## Supuestos:
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
  
- ## Salidas de analisis estadisticos:
- 
- ## Comparaciones:
- 
- # Escala del PL:
- 
- # Escala de VR:
+ # Variable de efectos aleatorios: 
+ # Colinealidad?
+
+## Salidas de modelo:
+
+## Ajuste del modelo: AIC/BIC
  
  
  #------------------------------------------------------------------------------
  # M1e<-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV
- ## Supuestos:
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+
+ # Variable de efectos aleatorios:
  
- ## Salidas de analisis estadisticos:
+ # Colinealidad?
  
- ## Comparaciones:
+## Salidas de modelo:
  
- # Escala del PL:
- 
- # Escala de VR:
- 
+## Ajuste del modelo: AIC/BIC
  
  #------------------------------------------------------------------------------
  # M1f <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV + NBI M1 <Provincial
  
- ## Supuestos:
+## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
  
- ## Salidas de analisis estadisticos:
+ # Variable de efectos aleatorios:
  
- ## Comparaciones:
+ # Colinealidad?
+
+## Salidas de modelo:
  
- # Escala del PL:
+## Ajuste del modelo: AIC/BIC
  
- # Escala de VR:
  
  #------------------------------------------------------------------------------
  # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
  
- ## Supuestos:
+## Supuestos:
  
- ## Salidas de analisis estadisticos:
+ # Variable de efectos aleatorios:
  
- ## Comparaciones:
+ # Colinealidad?
  
- # Escala del PL:
+## Salidas de modelo:
  
- # Escala de VR:
+ ## Ajuste del modelo: AIC/BIC
  
