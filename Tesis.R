@@ -19,7 +19,7 @@ library(car)
 library(emmeans)
 #---
 # 1) git add .
-# 2) git commit -m "cambios del finde"
+# 2) git commit -m "cambios del 20/08"
 # 3) git push
 
 #---
@@ -58,6 +58,8 @@ ENFR_temporal$Promedio_fv_Diario_Dic <- factor(ENFR_temporal$Promedio_fv_Diario_
 
 ENFR_temporal$Cumple_No_Cumple_FyV<- factor(ENFR_temporal$Cumple_No_Cumple_FyV)
 
+ENFR_temporal$Rango_edad <- factor(ENFR_temporal$Rango_edad)
+
 #---
 ## Transformamos Edad a numerico:
 
@@ -68,6 +70,8 @@ ENFR_temporal$Edad <- as.numeric(ENFR_temporal$Edad)
 
 sum(is.na(ENFR_temporal)) # La base de datos tiene 484 NA`s (RARO PORQUE NO HABIA ELIMINADO LOS NA´s DE LAS BASES INDIVIDUALES Y DEBERIAN HABER MAS)
 colSums(is.na(ENFR_temporal)) # Vienen de Ingreso_mensual_pesos_hogar + Quintil_ingresos
+
+ENFR_temporal <- na.omit(ENFR_temporal)
 
 #---
 ## La variable Provincia esta dando problemas en los modelos, vamos a ver que onda:
@@ -165,6 +169,8 @@ ggplot( data = ENFR_temporal, mapping = aes( x = Promedio_fv_Diario_Dic)) +
 ggplot( data = ENFR_temporal, mapping = aes( x = Promedio_fv_Diario_Dic, fill = Año_Edicion ))+ 
   geom_bar(position = "dodge")
 
+
+#-----
 ##Grafico de barras de "cumple o No" con el minimo recomendado separado por Genero:
 
 ggplot( data = na.omit(ENFR_temporal), mapping = aes( x = Promedio_fv_Diario_Dic, fill = Año_Edicion))+
@@ -195,7 +201,7 @@ ggplot( data = na.omit(Proporcion_CFyV), mapping = aes( x = Promedio_fv_Diario_D
   labs( title = "Consumo de frutas y verduras en poblacion adulta Argentina",
         subtitle = "Consumo munimo de tres porciones diarias recomendado por edicion",
         x = "Consumo minimo recomendado diario",
-        y = "Frecuencia",
+        y = "Proporcion",
         fill = "Edicion",
         caption = "Fuente: Encuesta Nacional de Factores de Riesgo (Indec)")+
   theme(axis.text = element_text(size = 7),
@@ -206,6 +212,7 @@ ggplot( data = na.omit(Proporcion_CFyV), mapping = aes( x = Promedio_fv_Diario_D
         plot.caption = element_text(hjust = 0.5),
   )
 
+#-----
 
 #Grafico de barras de "cumple o No" con el minimo recomendado separado por Genero y por año:
 
@@ -218,13 +225,20 @@ ggplot(data = ENFR_temporal, mapping = aes(x = Promedio_fv_Diario_Dic, fill = A�
   facet_wrap(~ Sexo)
 
 # Separados por año:
-ggplot(data = na.omit(ENFR_temporal), mapping = aes(x = Promedio_fv_Diario_Dic, fill = Sexo)) + 
-  geom_bar(position = "dodge") +
+
+genero_año_prop <- ENFR_temporal %>% 
+  group_by(Genero,Año_Edicion, Promedio_fv_Diario_Dic) %>% 
+  summarise(count = n())%>%
+  mutate(Proporcion = count / sum(count))
+              
+
+ggplot(data = na.omit(genero_año_prop), mapping = aes(x = Promedio_fv_Diario_Dic, y = Proporcion, fill = Genero)) + 
+  geom_bar(stat = "identity",position = "dodge") +
   facet_wrap(~ Año_Edicion)+
   labs( title = "Consumo de frutas y verduras en poblacion adulta Argentina",
         subtitle = "Consumo munimo de tres porciones diarias recomendado por año y segun genero",
         x = "Consumo minimo recomendado diario",
-        y = "Frecuencia",
+        y = "Proporcion",
         fill = "Genero",
         caption = "Fuente: Encuesta Nacional de Factores de Riesgo (Indec)")+
   theme(axis.text = element_text(size = 7),
@@ -238,8 +252,9 @@ ggplot(data = na.omit(ENFR_temporal), mapping = aes(x = Promedio_fv_Diario_Dic, 
 # Grafico de barras de "cumple o No" con el minimo recomendado separado por año y quintil de ingreso
 # otras variables
 
-#---
-# Como la variable "Provincia" va a ingresar al modelo estadistico como unba Variable de Efectos Aleatorios, vamos a ver que cantidad de personas encuenstadas hubo por provincia:
+#-----
+
+# Como la variable "Provincia" va a ingresar al modelo estadistico como una Variable de Efectos Aleatorios, vamos a ver que cantidad de personas encuenstadas hubo por provincia:
 
 table(ENFR_temporal$Provincia) # Variable no balanceada
 
@@ -262,51 +277,44 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 
  
  
-### Modelos simple con Año como V E F:
+### Modelos de AÑO EDICION:
+ 
 sum(is.na(ENFR_temporal$Año_Edicion))
 sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
 
-m1a <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion , ENFR_temporal, family = binomial)
+m1a <- glmer( Cumple_No_Cumple_FyV ~ Año_Edicion + (1 | Provincia )  , ENFR_temporal, family = binomial)
  
 ## Supuestos:
 
-simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T)
-# Variable de efectos aleatorios:
+simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T) # HACER UN RESAMPLEO, EL DHARMa NO SE BANCA TANTOS DATOS 
+  # Variable de efectos aleatorios:
 
 ## Salidas estadisticas: 
 summary(m1a)
-Anova(m1a) # Anova con "A" mayuscula para modelos lineales generalizados, con "a" en minuscula para mlgenerales
+# Anova con "A" mayuscula para modelos lineales generalizados, con "a" en minuscula para mlgenerales
+Anova(m1a) #  Realiza una prueba estadística (en este caso, el test de Chi-cuadrado) para evaluar si existen diferencias significativas entre los niveles de la variable predictora. Pero no desglosa los efectos individuales o las medias para cada nivel.
 
 ## Comparaciones : emmeans
-# Comparasiones en escala de logit:
-emmeans(m1a, pairswise ~ Año_Edicion) # Es el que usan en clase y no funciona
+  # Comparasiones en escala de logit:
+emmeans(m1a, pairwise ~ Año_Edicion) # Escala del PL
 
-pairs(emmeans(m1a,~ Año_Edicion )) # Funciona
-# Comparacion en escala de la VR:
-pairs(emmeans(m1a, ~ Año_Edicion, type = "response"))
+  # Comparacion en escala de la VR:
+emmeans(m1a, pairwise ~ Año_Edicion, type = "response") #escala de la VR. Con emmeans se pueden calcular Las medias estimadas (o probabilidades predichas) para cada nivel de la variable cualitativa, con los límites inferior y superior del intervalo de confianza para la probabilidad estimada.
+print(emm)
 
-# Intervalos de confianza: pasamos del estudio a la poblacion.
+  # Intervalos de confianza: pasamos del estudio a la poblacion.
 confint(m1a)
 
-## Modelos simple con Año como V E F mas Provincia como V E A:
-
-m1a1 <- glmmTMB( Cumple_No_Cumple_FyV ~ Año_Edicion + (1 | Provincia )  , ENFR_pocas_datos, family = binomial)
-
-
-## Supuestos: 
-simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
-# Variable de efectos aleatorios:
 
 # Residuales en funcion de cada variable predictora: "plotresidual( simulado, var predic)"
 
 #-------------------------------------------------------------------------------
  
-### Modelos simple con Nivel_de_instrucción como V E F mas Provincia como V E A: 
+### Modelos con NIVEL DE INSTRUCCION:
+
 table(ENFR_temporal$Nivel_de_instrucción) 
 
 m1b1 <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
-
-m1b <- glmmTMB( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción, ENFR_temporal, family = binomial)
 
 ## Supuestos: 
 
@@ -319,51 +327,51 @@ Anova(m1b)
 ## Contrastes: 
 
 # Escala de PL:
-pairs(emmeans(m1b, ~ Nivel_de_instrucción ))
+emmeans(m1b, pairwise ~ Nivel_de_instrucción )
 
 # Escala de la VR:
-pairs(emmeans(m1b, ~ Nivel_de_instrucción, type = "response"))
+emmeans(m1b, pairwise ~ Nivel_de_instrucción, type = "response")
 
 #-------------------------------------------------------------------------------
-### Modelos simple con Edad como V E F mas Provincia como V E A:
-m1c <- glmer( Cumple_No_Cumple_FyV ~  Edad + (1 | Provincia ), ENFR_temporal , family = binomial)
 
-m1c <- glmmTMB( Cumple_No_Cumple_FyV ~  Edad, ENFR_temporal , family = binomial)
+### Modelos de RANGO EDAD:
+
+m1c <- glmer( Cumple_No_Cumple_FyV ~  Rango_edad + (1 | Provincia ), ENFR_temporal , family = binomial)
+
 
 ##  Supuestos: 
 
 simulationOutput <- simulateResiduals(fittedModel = m1c, plot = T)
 windows()
 
-# Linealidad de VR con el logit: tiene que guardar una relacion lineal con el log de odd
-# residuos <- residuals(m1c, type = "pearson")
-# plot(ENFR_temporal$Edad, residuos,
-#      xlab = "Edad",
-#      ylab = "Residuos de Pearson",
-#      main = "Residuos vs. Edad")
-# abline(h = 0, col = "red", lty = 2)
-
+# # Linealidad de VR con el logit: tiene que guardar una relacion lineal con el log de odd
+# Logit_vs_edad <- glmmTMB(Cumple_No_Cumple_FyV ~ Edad, data = ENFR_temporal, family = binomial)
+# 
+# logit_grafico <- predict(Logit_vs_edad, type = "link")  # Esto te da el logit (log-odds)
+#   #grafico logit vs Edad:
+# 
+# plot(ENFR_temporal$Edad, logit_grafico, xlab = "Edad", ylab = "Logit", main = "Relación entre Edad y Logit")
+# abline(lm(logit_grafico ~ ENFR_temporal$Edad), col = "blue")
 
 ## Salida de analisis estadistico
 summary(m1c)
+Anova(m1c)
 
-# Grafico predictivo:
-Prediccion_m1c <- predict(m1c, ENFR_temporal, type="response")
 
-ggplot( data = ENFR_temporal, mapping = aes( x = Edad, y = Prediccion_m1c ))+
-  geom_point() +
-  labs(
-    title = "Probabilidad estimada segun edad",
-    x = "Edad",
-    y = "Probabilidad, pedicha, Cumple/No_cumple"
-  )
+## Contrastes:
 
+  # Escala PL:
+emmeans(m1c, pairwise ~ Rango_edad )
+
+  # Escala de VR:
+emmeans(m1c, pairwise ~ Rango_edad, type = "response" )
 
 #-------------------------------------------------------------------------------
-### Modelos simple con Sexo como V E F mas Provincia como V E A:
+
+### Modelos GENERO:
+
 m1d <- glmer( Cumple_No_Cumple_FyV ~  Genero + (1|Provincia ), ENFR_temporal , family = binomial)
 
-m1d <- glmmTMB( Cumple_No_Cumple_FyV ~  Genero, ENFR_temporal , family = binomial)
 
 ## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1d, plot = T)
@@ -375,16 +383,15 @@ Anova(m1d)
 ## Comparaciones:
 
 # En escala del PL:
-pairs(emmeans(m1d, ~ Genero))
+emmeans(m1d, pairwise ~ Genero )
 
 # En escala de VR:
-pairs(emmeans(m1d, ~ Genero, type = "response"))
-
+emmeans(m1d, pairwise ~ Genero, type = "response")
 #-------------------------------------------------------------------------------
- # Modelos simple con Sit_laboral como V E F mas Provincia como V E A:
-m1e <- glmmTMB( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
 
-m1e <- glmmTMB( Cumple_No_Cumple_FyV ~  Sit_laboral, ENFR_temporal, family = binomial)
+## Modelos SITUACION LABORAL:
+
+m1e <- glmer( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
 
 ## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1e, plot = T)
@@ -396,16 +403,17 @@ Anova(m1e)
 ## Comparaciones:
 
 # Escala del PL:
-pairs(emmeans(m1e, ~ Sit_laboral))
-
+emmeans(m1e, pairwise  ~ Sit_laboral)
 # Escala de VR:
-pairs(emmeans(m1e, ~ Sit_laboral, type = "response"))
+emmeans( m1e, pairwise  ~ Sit_laboral, type = "response")
 
 #------------------------------------------------------------------------------- 
-### Modelos simple con Quintil_ingresos como V E F mas Provincia como V E A:
-m1g <- glmmTMB( Cumple_No_Cumple_FyV ~  Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial)
 
-m1g <- glmmTMB( Cumple_No_Cumple_FyV ~  Quintil_ingresos, ENFR_temporal, family = binomial)
+### Modelos QUINTIL INGRESO:
+
+m1g <- glmer( Cumple_No_Cumple_FyV ~  Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial)
+
+
 
 ## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1g, plot = T)
@@ -415,13 +423,13 @@ Anova(m1g)
 
 ## Comparaciones:
 # Escala del PL:
-pairs(emmeans(m1g, ~ Quintil_ingresos))
+emmeans(m1g, pairwise ~ Quintil_ingresos)
 
 # Escala de VR:
-pairs(emmeans(m1g, ~ Quintil_ingresos, type = "response"))
+emmeans(m1g, pairwise ~ Quintil_ingresos, type = "response")
 #------------------------------------------------------------------------------- 
 
-### Modelos simple con Cobertura_salud como V E F mas Provincia como V E A: ESTE NO LO IBAMOS A USAR
+### Modelos COBERTURA SALUD: ESTE NO LO IBAMOS A USAR
 m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
 
 m1f <- glmmTMB( Cumple_No_Cumple_FyV ~  Cobertura_salud, ENFR_temporal, family = binomial)
@@ -464,7 +472,7 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
  
  
 # M1a <-CFV ~ Genero + rango etario + año
- M1a <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion, ENFR_temporal, family = binomial())
+ M1a <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + (1|Provincia ), ENFR_temporal, family = binomial())
 
  
 ## Supuestos:
@@ -472,13 +480,13 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
  simulationOutput <- simulateResiduals(fittedModel = M1a, plot = T)
  
  # supuesto para variable cuanti: linealidad de edad con logit
-Logit_vs_edad <- glmmTMB(Cumple_No_Cumple_FyV ~ Edad, data = ENFR_temporal, family = binomial)
-
-logit_grafico <- predict(Logit_vs_edad, type = "link")  # Esto te da el logit (log-odds)
- #grafico logit vs Edad:
-
-plot(ENFR_temporal$Edad, logit_grafico, xlab = "Edad", ylab = "Logit", main = "Relación entre Edad y Logit")
-abline(lm(logit_grafico ~ ENFR_temporal$Edad), col = "blue")
+# Logit_vs_edad <- glmmTMB(Cumple_No_Cumple_FyV ~ Edad, data = ENFR_temporal, family = binomial)
+# 
+# logit_grafico <- predict(Logit_vs_edad, type = "link")  # Esto te da el logit (log-odds)
+#  #grafico logit vs Edad:
+# 
+# plot(ENFR_temporal$Edad, logit_grafico, xlab = "Edad", ylab = "Logit", main = "Relación entre Edad y Logit")
+# abline(lm(logit_grafico ~ ENFR_temporal$Edad), col = "blue")
 
  
 ## Colinealidad?
@@ -489,8 +497,12 @@ abline(lm(logit_grafico ~ ENFR_temporal$Edad), col = "blue")
 ## Salidas de modelo:
 
 summary(M1a)
+Anova(M1a)
  
-## Comparaciones (?) 
+## Comparaciones 
+emmeans(M1a, pairwise ~ Genero, type = "response")
+emmeans(M1a, pairwise ~ Rango_edad, type = "response")
+emmeans()
 
 ## Ajuste del modelo: AIC/BIC / Devianza explicada(simil Rcuadrado)
  
@@ -498,7 +510,7 @@ summary(M1a)
  #------------------------------------------------------------------------------
  # M1b<-CFV ~ Genero + rango etario + año + de a una sumar las variables de NSE (max nivel alcanza) 
  
- M1b <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion + , ENFR_temporal, family = binomial())
+ M1b <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + (1|Provincia ), ENFR_temporal, family = binomial())
 
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
@@ -515,8 +527,9 @@ summary(M1a)
  #------------------------------------------------------------------------------
  # M1c <-CFV ~ Genero + rango etario + año + Nivel educ
  
- M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  + , ENFR_temporal, family = binomial())
-## Supuestos:
+ M1c <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial())
+
+ ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
  
  # Variable de efectos aleatorios:
@@ -528,7 +541,7 @@ summary(M1a)
  
  #------------------------------------------------------------------------------
  # M1d <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso
- M1c <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Edad + Año_Edicion +  +  + , ENFR_temporal, family = binomial())
+ M1d <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial())
  
  
 ## Supuestos:
@@ -544,6 +557,9 @@ summary(M1a)
  
  #------------------------------------------------------------------------------
  # M1e<-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV
+ 
+ M1e <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial())
+ 
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
 
@@ -557,9 +573,10 @@ summary(M1a)
  
  #------------------------------------------------------------------------------
  # M1f <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV + NBI M1 <Provincial
+ M1f <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial())
  
 ## Supuestos:
- simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ simulationOutput <- simulateResiduals(fittedModel = M1f, plot = T)
  
  # Variable de efectos aleatorios:
  
@@ -571,7 +588,9 @@ summary(M1a)
  
  
  #------------------------------------------------------------------------------
- # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+ # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial. TENGO QUE VER QUE ONDA PORQUE ACA ENTRA UNA VARIABLE DE OTRO DATASET
+
+  M1g <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + Porcentaje_hogar_NBI + (1|Provincia ), ENFR_temporal, family = binomial())
  
 ## Supuestos:
  
@@ -582,4 +601,9 @@ summary(M1a)
 ## Salidas de modelo:
  
  ## Ajuste del modelo: AIC/BIC
+ 
+ #______________________________________________________________________________
+ 
+ 
+                        ### MODELOS CON INTERACCION ###
  
