@@ -19,7 +19,7 @@ library(car)
 library(emmeans)
 #---
 # 1) git add .
-# 2) git commit -m "cambios del 20/08"
+# 2) git commit -m "cambios del 21/08"
 # 3) git push
 
 #---
@@ -37,7 +37,6 @@ NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header 
 
 ## Pasamos a factor todas las variables:
 
-str(ENFR_temporal)
 ENFR_temporal$Año_Edicion <- as.factor(ENFR_temporal$Año_Edicion)
 
 ENFR_temporal$Provincia <- as.factor(ENFR_temporal$Provincia)
@@ -273,7 +272,6 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 
 
                          ### MODELOS SIMPLES ###
- str(ENFR_temporal)
 
  
  
@@ -452,13 +450,18 @@ pairs(emmeans(m1f, ~Cobertura_salud, type = "response"))
 #------------------------------------------------------------------------------
 
 ### Modelos simple con como V E F mas Provincia como V E A:
-m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = binomial)
+m1h <- glmer( Cumple_No_Cumple_FyV ~ Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial)
  
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1h, plot = T)
  ## Salidas de analisis estadisticos:
  
+ Anova(m1h)
+ 
  ## Comparaciones:
+ 
+ emmeans(m1h, pairwise ~ Indice_NBI_hogar_dic, type = "response")
+ 
  
  # Escala del PL:
  
@@ -472,7 +475,7 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
  
  
 # M1a <-CFV ~ Genero + rango etario + año
- M1a <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + (1|Provincia ), ENFR_temporal, family = binomial())
+M1a <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + (1|Provincia ), ENFR_temporal, family = binomial())
 
  
 ## Supuestos:
@@ -492,6 +495,7 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~  + (1|Provincia ), ENFR_temporal, family = 
 ## Colinealidad?
  car::vif(M1a)
  
+ 
  # Variable de efectos aleatorios:
  
 ## Salidas de modelo:
@@ -502,7 +506,7 @@ Anova(M1a)
 ## Comparaciones 
 emmeans(M1a, pairwise ~ Genero, type = "response")
 emmeans(M1a, pairwise ~ Rango_edad, type = "response")
-emmeans()
+emmeans(M1a, pairwise ~ Año_Edicion, type = "response")
 
 ## Ajuste del modelo: AIC/BIC / Devianza explicada(simil Rcuadrado)
  
@@ -510,47 +514,72 @@ emmeans()
  #------------------------------------------------------------------------------
  # M1b<-CFV ~ Genero + rango etario + año + de a una sumar las variables de NSE (max nivel alcanza) 
  
- M1b <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + (1|Provincia ), ENFR_temporal, family = binomial())
+ M1b <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + (1|Provincia ), ENFR_temporal, family = binomial())
 
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
  # Colinealidad?
+ car :: vif(M1b)
+ 
  # Variable de efectos aleatorios: 
  
 ## Salidas de modelo:
- 
+Anova(M1b) 
 
 ## Ajuste del modelo: AIC/BIC
  
+## Comparaciones:
+ emmeans(M1b, pairwise ~ Genero, type = "response")
+ emmeans(M1b, pairwise ~ Rango_edad, type = "response")
+ emmeans(M1b, pairwise ~ Año_Edicion, type = "response")
+ emmeans(M1b, pairwise ~ Nivel_de_instrucción, type = "response")
  
  
  #------------------------------------------------------------------------------
- # M1c <-CFV ~ Genero + rango etario + año + Nivel educ
+ # M1c: AGREGA COB SALUD PERO DIJIMOS QUE NO VAMOS A USARLO, NO LO VOY A TENER EN CUENTA EN LAS QUE SIGUE
  
  M1c <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial())
 
  ## Supuestos:
- simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ simulationOutput <- simulateResiduals(fittedModel = , plot = T)
  
  # Variable de efectos aleatorios:
  # Colinealidad?
- 
+ car :: vif(M1c)
 ## Salidas de modelo:
-
- ## Ajuste del modelo: AIC/BIC 
+Anova(M1c)
+ 
+## Comparaciones:
+ emmeans(M1c, pairwise ~ Genero, type = "response")
+ emmeans(M1c, pairwise ~ Rango_edad, type = "response")
+ emmeans(M1c, pairwise ~ Año_Edicion, type = "response")
+ emmeans(M1c, pairwise ~ Nivel_de_instrucción, type = "response")
+ emmeans(M1c, pairwise ~ Cobertura_salud, type = "response")
+ 
+ 
+## Ajuste del modelo: AIC/BIC 
  
  #------------------------------------------------------------------------------
  # M1d <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso
- M1d <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial())
+ M1d <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial())
  
  
 ## Supuestos:
- simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ simulationOutput <- simulateResiduals(fittedModel = , plot = T)
  
- # Variable de efectos aleatorios: 
- # Colinealidad?
+## Variable de efectos aleatorios: 
+
+## Colinealidad?
+car :: vif(M1d)
 
 ## Salidas de modelo:
+
+Anova(M1d)
+
+## Comparaciones:
+
+emmeans(M1d, pairwise ~ Sit_laboral, type = "response" )
+
 
 ## Ajuste del modelo: AIC/BIC
  
@@ -558,22 +587,28 @@ emmeans()
  #------------------------------------------------------------------------------
  # M1e<-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV
  
- M1e <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial())
+ M1e <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial())
  
 ## Supuestos:
- simulationOutput <- simulateResiduals(fittedModel = m1a1, plot = T)
+ simulationOutput <- simulateResiduals(fittedModel = , plot = T)
 
  # Variable de efectos aleatorios:
  
  # Colinealidad?
  
 ## Salidas de modelo:
+ Anova(M1e)
  
+## Comparaciones:
+
+emmeans(M1e, pairwise ~ Quintil_ingresos ) 
 ## Ajuste del modelo: AIC/BIC
  
  #------------------------------------------------------------------------------
  # M1f <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV + NBI M1 <Provincial
- M1f <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial())
+control <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))
+ 
+M1f <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
  
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = M1f, plot = T)
@@ -581,8 +616,15 @@ emmeans()
  # Variable de efectos aleatorios:
  
  # Colinealidad?
-
+car :: vif(M1f)
+ 
 ## Salidas de modelo:
+
+Anova(M1f)
+
+## Comparaciones:
+
+emmeans(M1f, pairwise ~ Indice_NBI_hogar_dic, type = "response" )
  
 ## Ajuste del modelo: AIC/BIC
  
@@ -590,7 +632,7 @@ emmeans()
  #------------------------------------------------------------------------------
  # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial. TENGO QUE VER QUE ONDA PORQUE ACA ENTRA UNA VARIABLE DE OTRO DATASET
 
-  M1g <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Cobertura_salud + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + Porcentaje_hogar_NBI + (1|Provincia ), ENFR_temporal, family = binomial())
+  M1g <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + Porcentaje_hogar_NBI + (1|Provincia ), ENFR_temporal, family = binomial())
  
 ## Supuestos:
  
@@ -606,4 +648,14 @@ emmeans()
  
  
                         ### MODELOS CON INTERACCION ###
- 
+# 
+# Mod1_interaccion <- CFV ~ año + Género * Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+# 
+# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso*Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+#  
+# Mod3_interaccion <- CFV ~  genero * quintil_ingresos*año_edicion  + nivel_instruccion + NBI_Provincial + CarenciasVivienda + rango_edad + (1/ Provincia)
+
+
+
+
+
