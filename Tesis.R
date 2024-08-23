@@ -2,11 +2,12 @@ rm(list = ls())
 
 install.packages("glmmTMB")
 install.packages("tidyverse")
-install.packages("matrix")
+install.packages("Matrix")
 install.packages("DHARMa")
 install.packages("psych")
 install.packages("car")
 install.packages("emmeans")
+install.packages("lme4")
 
 
 library(lme4)
@@ -26,9 +27,9 @@ library(emmeans)
 
 #_______________________________________________________________________________
 
-ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
+ENFR_temporal <- read.csv("C:/Users/Dell/Documents/Tesis/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
-NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
+NBI_CNA <- read.csv("C:/Users/Dell/Documents/Tesis/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
 
 
 #_______________________________________________________________________________
@@ -267,6 +268,15 @@ ggplot( ENFR_temporal, aes(x = Provincia))+
 sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
 
 describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
+
+#_______________________________________________________________________________
+
+### Creando un nuevo dataset con ambas bases para laburar en modelos con interaccion
+
+ENFR_t_NBI_CNA <- ENFR_temporal %>% 
+  left_join(NBI_CNA %>% 
+              select(Año_Edicion, Porcentaje_hogares_NBI) , by = "Año_Edicion)")
+
 
 #_______________________________________________________________________________
 
@@ -641,6 +651,9 @@ emmeans(M1f, pairwise ~ Indice_NBI_hogar_dic, type = "response" )
  # Colinealidad?
  
 ## Salidas de modelo:
+
+## Comparaciones:
+emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
  
  ## Ajuste del modelo: AIC/BIC
  
@@ -650,12 +663,68 @@ emmeans(M1f, pairwise ~ Indice_NBI_hogar_dic, type = "response" )
                         ### MODELOS CON INTERACCION ###
 # 
 # Mod1_interaccion <- CFV ~ año + Género * Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
-# 
-# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso*Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
-#  
+Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+
+
+## Variable de efectos aleatorios:
+ 
+## Colinealidad?
+ car :: vif(Mod1_interaccion)
+ 
+ 
+## Salidas de modelo:
+ 
+Anova(Mod1_interaccion) 
+## Comparaciones:
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+
+
+ #-----
+# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso + (tambien *?) Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+
+Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+
+## Variable de efectos aleatorios:
+
+## Colinealidad?
+car :: vif(Mod2_interaccion)
+
+
+## Salidas de modelo:
+
+Anova(Mod2_interaccion)
+
+## Comparaciones:
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+
+
+#-----
 # Mod3_interaccion <- CFV ~  genero * quintil_ingresos*año_edicion  + nivel_instruccion + NBI_Provincial + CarenciasVivienda + rango_edad + (1/ Provincia)
 
+Mod3_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+
+## Variable de efectos aleatorios:
+
+## Colinealidad?
+car :: vif(Mod3_interaccion)
 
 
+## Salidas de modelo:
+
+Anova(Mod3_interaccion)
+
+## Comparaciones:
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
 
 
