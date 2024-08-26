@@ -7,7 +7,11 @@ install.packages("DHARMa")
 install.packages("psych")
 install.packages("car")
 install.packages("emmeans")
+<<<<<<< HEAD
 install.packages("lme4")
+=======
+install.packages("GGally")
+>>>>>>> 31a8413 (cambios del 26/08)
 
 
 library(lme4)
@@ -18,26 +22,28 @@ library(DHARMa)
 library(psych)
 library(car)
 library(emmeans)
+library(GGally)
 #---
 # 1) git add .
-# 2) git commit -m "cambios del 21/08"
+# 2) git commit -m "cambios del 23/08"
 # 3) git push
 
 #---
 
-#_______________________________________________________________________________
+#_____________________________________________________________________________________________________________
 
 ENFR_temporal <- read.csv("C:/Users/Dell/Documents/Tesis/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
 NBI_CNA <- read.csv("C:/Users/Dell/Documents/Tesis/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
 
 
-#_______________________________________________________________________________
+#______________________________________________________________________________________________________________
 
 ### Algunos arreglos en el dataset:
 
 ## Pasamos a factor todas las variables:
 
+# ENFR:
 ENFR_temporal$Año_Edicion <- as.factor(ENFR_temporal$Año_Edicion)
 
 ENFR_temporal$Provincia <- as.factor(ENFR_temporal$Provincia)
@@ -59,6 +65,12 @@ ENFR_temporal$Promedio_fv_Diario_Dic <- factor(ENFR_temporal$Promedio_fv_Diario_
 ENFR_temporal$Cumple_No_Cumple_FyV<- factor(ENFR_temporal$Cumple_No_Cumple_FyV)
 
 ENFR_temporal$Rango_edad <- factor(ENFR_temporal$Rango_edad)
+
+#NBI_CNA:
+
+NBI_CNA$Año_Edicion <- factor(NBI_CNA$Año_Edicion)
+NBI_CNA$Provincia <- factor(NBI_CNA$Provincia)
+NBI_CNA$Porcentaje_hogares_NBI <- as.numeric(NBI_CNA$Porcentaje_hogares_NBI)
 
 #---
 ## Transformamos Edad a numerico:
@@ -274,12 +286,55 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 ### Creando un nuevo dataset con ambas bases para laburar en modelos con interaccion
 
 ENFR_t_NBI_CNA <- ENFR_temporal %>% 
+<<<<<<< HEAD
   left_join(NBI_CNA %>% 
               select(Año_Edicion, Porcentaje_hogares_NBI) , by = "Año_Edicion)")
+=======
+  left_join(NBI_CNA %>% select(Año_Edicion, Provincia, Porcentaje_hogares_NBI),
+            by = c("Año_Edicion", "Provincia") )
+            
+str(ENFR_t_NBI_CNA)
+sum(is.na(ENFR_t_NBI_CNA))
+# Eliminamos los NA:
+
+ENFR_t_NBI_CNA <- na.omit(ENFR_t_NBI_CNA)
+
+boxplot(ENFR_t_NBI_CNA$porcentaje_hogares_NBI)
+
+
+# Explorando un poquito los datos de esta nueva base:
+
+# ENFR_t_NBI_CNA %>% 
+#   select(Provincia, Año_Edicion, Cumple_No_Cumple_FyV, Porcentaje_hogares_NBI) %>% 
+#   filter( Provincia == "Tierra del Fuego", Año_Edicion == 2009) # LOS VALORES DE PORCENTAJE NBI SE VAN A REPETIR TODAS  LAS VECES QUE EN UN AÑO SE REPITAN LOS ENCUESTADOS EN UNA PROVINCIA.
+
+
+
+### Modificar la variable Procentaje de hogares nbi:
+# Calcular los puntos de corte para los terciles
+
+cortes <- quantile(ENFR_t_NBI_CNA$Porcentaje_hogares_NBI, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE)
+print(cortes)
+# Crear la variable categórica de terciles
+
+ENFR_t_NBI_CNA$Terciles_NBI_provincial <- cut(ENFR_t_NBI_CNA$Porcentaje_hogares_NBI, 
+                                   breaks = cortes, 
+                                   labels = c("Bajo", "Medio", "Alto"), 
+                                   include.lowest = TRUE)
+
+# Verificar la nueva variable
+table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
+str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
+>>>>>>> 31a8413 (cambios del 26/08)
 
 
 #_______________________________________________________________________________
 
+<<<<<<< HEAD
+=======
+#_________________________________________________________________________________________________________________________________________________________________________________
+
+>>>>>>> 31a8413 (cambios del 26/08)
 
                          ### MODELOS SIMPLES ###
 
@@ -477,7 +532,25 @@ m1h <- glmer( Cumple_No_Cumple_FyV ~ Indice_NBI_hogar_dic + (1|Provincia ), ENFR
  
  # Escala de VR:
  
-#_______________________________________________________________________________ 
+#-------------------------------------------------------------------------------
+ 
+# Modelo simple de  Porcentaje_hogares_NBI en ENFR_t_NBI_CNA:
+ 
+m1i <- glmer(Cumple_No_Cumple_FyV ~ Porcentaje_hogares_NBI + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial ) 
+
+ ## Supuestos:
+ simulationOutput <- simulateResiduals(fittedModel = m1i, plot = T)
+ ## Salidas de analisis estadisticos:
+ summary(m1i)
+ Anova(m1i)
+ 
+ ## Comparaciones: 
+
+ emmeans(m1i, pairwise ~ Porcentaje_hogares_NBI, type = "response")
+ 
+ 
+ 
+#__________________________________________________________________________________________________________________________________________________________________________________ 
  
 
                 ### MODELOS MULTIPLES (mas de una variable) ###
@@ -616,7 +689,7 @@ emmeans(M1e, pairwise ~ Quintil_ingresos )
  
  #------------------------------------------------------------------------------
  # M1f <-CFV ~ Genero + rango etario + año + Nivel educ + Quintil ingreso +CMV + NBI M1 <Provincial
-control <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))
+control <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)) #parámetros de control para la optimización
  
 M1f <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
  
@@ -640,29 +713,62 @@ emmeans(M1f, pairwise ~ Indice_NBI_hogar_dic, type = "response" )
  
  
  #------------------------------------------------------------------------------
- # M1g <-CFV ~ año + Género + Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial. TENGO QUE VER QUE ONDA PORQUE ACA ENTRA UNA VARIABLE DE OTRO DATASET
+# Modelos que se le agrega una variable cuanti (hasta el momento todas cualis)
 
-  M1g <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + Porcentaje_hogar_NBI + (1|Provincia ), ENFR_temporal, family = binomial())
+control <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)) #parámetros de control para la optimización
+
+M1g <- glmer(Cumple_No_Cumple_FyV ~ Genero + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Quintil_ingresos + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial())
  
 ## Supuestos:
  
  # Variable de efectos aleatorios:
- 
- # Colinealidad?
+
+## Correlacion:
+
+ggpairs(ENFR_t_NBI_CNA, cardinality_threshold = 25)
+
+cor(ENFR_t_NBI_CNA, use = "complete.obs")
+
+## Colinealidad?
+car :: vif(M1g) # problemas cuando es > 5
+
+
  
 ## Salidas de modelo:
+<<<<<<< HEAD
 
 ## Comparaciones:
 emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
  
+=======
+summary(M1g)
+
+>>>>>>> 31a8413 (cambios del 26/08)
  ## Ajuste del modelo: AIC/BIC
  
- #______________________________________________________________________________
+ #_________________________________________________________________________________________________________________________________________________________________________________
  
  
                         ### MODELOS CON INTERACCION ###
+
+
+
+#--- 
+
+# Porcentaje_hogares_NBI es lineal al logit?
+# Logit_vs_Porcentaje_hogares_NBI <- glmer(Cumple_No_Cumple_FyV ~ Porcentaje_hogares_NBI, data = ENFR_temporal, family = binomial)
+# # 
+# logit_grafico <- predict(Logit_vs_edad, type = "link")  # Esto te da el logit (log-odds)
+
+##grafico logit vs Porcentaje_hogares_NBI:
 # 
+# plot(ENFR_temporal$Porcentaje_hogares_NBI, logit_grafico, xlab = "Porcentaje_hogares_NBI", ylab = "Logit", main = "Relación entre Porcentaje_hogares_NBI y Logit")
+# abline(lm(logit_grafico ~ ENFR_temporal$Porcentaje_hogares_NBI), col = "blue")
+
+#---
+
 # Mod1_interaccion <- CFV ~ año + Género * Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+<<<<<<< HEAD
 Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
 
 
@@ -674,6 +780,35 @@ Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango
  
 ## Salidas de modelo:
  
+=======
+
+Mod1_interaccion1 <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
+# #"Warning messages:
+# 1: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                   unable to evaluate scaled gradient
+#                 2: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                                   Model failed to converge: degenerate  Hessian with 1 negative eigenvalues"
+
+
+
+### Agregado de optimizador para ver si el modelo funciona
+control <- glmerControl(optimizer = "nloptwrap", optCtrl = list(maxfun = 100000)) #parámetros de control para la optimización
+
+Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control) 
+
+
+
+
+## Variable de efectos aleatorios:
+
+## Colinealidad?
+car :: vif(Mod1_interaccion)
+
+
+## Salidas de modelo:
+
+summary(Mod1_interaccion)
+>>>>>>> 31a8413 (cambios del 26/08)
 Anova(Mod1_interaccion) 
 ## Comparaciones:
 emmeans(, pairwise ~  , type = "response")
@@ -683,10 +818,36 @@ emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 
 
+<<<<<<< HEAD
  #-----
 # Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso + (tambien *?) Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
 
 Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+=======
+#-----
+# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso + (tambien *?) Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+
+Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control)
+# Warning message: LA SALIDA DE ESTE MODELO ME DIO ESO
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model failed to converge with max|grad| = 0.00715947 (tol = 0.002, component 1)
+
+## Ver si aumentando de maxfun = 100000 a maxfun = 200000
+control2 <- glmerControl(optimizer = "nloptwrap", optCtrl = list(maxfun = 200000))
+Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control2)
+# Warning message:
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model failed to converge with max|grad| = 0.0182451 (tol = 0.002, component 1)
+
+summary(Mod2_interaccion)$varcor # El resumen de las varianzas de los efectos aleatorios muestra una desviación estándar de 0.263 para el intercepto de Provincia. Esto indica que hay cierta variabilidad entre provincias en el efecto del intercepto, pero no proporciona información completa sobre el ajuste del modelo ni su convergencia.
+
+## Modelo sin var efec aleatorio:
+control_sin_int <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+Mod2_interaccion_sin_aleat  <- glm(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial , ENFR_t_NBI_CNA, family = binomial, control = control_sin_int)
+
+
+
+>>>>>>> 31a8413 (cambios del 26/08)
 
 ## Variable de efectos aleatorios:
 
@@ -709,7 +870,11 @@ emmeans(, pairwise ~  , type = "response")
 #-----
 # Mod3_interaccion <- CFV ~  genero * quintil_ingresos*año_edicion  + nivel_instruccion + NBI_Provincial + CarenciasVivienda + rango_edad + (1/ Provincia)
 
+<<<<<<< HEAD
 Mod3_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+=======
+Mod3_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control)
+>>>>>>> 31a8413 (cambios del 26/08)
 
 ## Variable de efectos aleatorios:
 
@@ -718,6 +883,7 @@ car :: vif(Mod3_interaccion)
 
 
 ## Salidas de modelo:
+<<<<<<< HEAD
 
 Anova(Mod3_interaccion)
 
@@ -726,5 +892,14 @@ emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
+=======
+>>>>>>> 31a8413 (cambios del 26/08)
 
+Anova(Mod3_interaccion)
+
+## Comparaciones:
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
 
