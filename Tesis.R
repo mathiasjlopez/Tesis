@@ -1,17 +1,17 @@
 rm(list = ls())
 
 install.packages("glmmTMB")
+#install.packages("TMB")
+install.packages("TMB", type = "source")
 install.packages("tidyverse")
 install.packages("Matrix")
 install.packages("DHARMa")
 install.packages("psych")
 install.packages("car")
 install.packages("emmeans")
-<<<<<<< HEAD
 install.packages("lme4")
-=======
 install.packages("GGally")
->>>>>>> 31a8413 (cambios del 26/08)
+
 
 
 library(lme4)
@@ -25,16 +25,17 @@ library(emmeans)
 library(GGally)
 #---
 # 1) git add .
-# 2) git commit -m "cambios del 23/08"
+# 2) git commit -m "cambios del 26/08"
 # 3) git push
 
 #---
 
 #_____________________________________________________________________________________________________________
 
-ENFR_temporal <- read.csv("C:/Users/Dell/Documents/Tesis/EsNsFR.csv", header = T, sep = ",", dec = ".")
+ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
-NBI_CNA <- read.csv("C:/Users/Dell/Documents/Tesis/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
+ 
+ NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
 
 
 #______________________________________________________________________________________________________________
@@ -286,10 +287,6 @@ describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 ### Creando un nuevo dataset con ambas bases para laburar en modelos con interaccion
 
 ENFR_t_NBI_CNA <- ENFR_temporal %>% 
-<<<<<<< HEAD
-  left_join(NBI_CNA %>% 
-              select(Año_Edicion, Porcentaje_hogares_NBI) , by = "Año_Edicion)")
-=======
   left_join(NBI_CNA %>% select(Año_Edicion, Provincia, Porcentaje_hogares_NBI),
             by = c("Año_Edicion", "Provincia") )
             
@@ -325,16 +322,14 @@ ENFR_t_NBI_CNA$Terciles_NBI_provincial <- cut(ENFR_t_NBI_CNA$Porcentaje_hogares_
 # Verificar la nueva variable
 table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
->>>>>>> 31a8413 (cambios del 26/08)
 
 
 #_______________________________________________________________________________
 
-<<<<<<< HEAD
-=======
+
 #_________________________________________________________________________________________________________________________________________________________________________________
 
->>>>>>> 31a8413 (cambios del 26/08)
+
 
                          ### MODELOS SIMPLES ###
 
@@ -735,15 +730,14 @@ car :: vif(M1g) # problemas cuando es > 5
 
  
 ## Salidas de modelo:
-<<<<<<< HEAD
+summary(M1g)
 
 ## Comparaciones:
 emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
  
-=======
-summary(M1g)
 
->>>>>>> 31a8413 (cambios del 26/08)
+
+
  ## Ajuste del modelo: AIC/BIC
  
  #_________________________________________________________________________________________________________________________________________________________________________________
@@ -767,35 +761,10 @@ summary(M1g)
 
 #---
 
-# Mod1_interaccion <- CFV ~ año + Género * Quintil de Ingreso + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
-<<<<<<< HEAD
-Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
+# Modelo 1 con interaccion Genero*Quintil de ingresos:
 
 
-## Variable de efectos aleatorios:
- 
-## Colinealidad?
- car :: vif(Mod1_interaccion)
- 
- 
-## Salidas de modelo:
- 
-=======
-
-Mod1_interaccion1 <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
-# #"Warning messages:
-# 1: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                   unable to evaluate scaled gradient
-#                 2: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                                   Model failed to converge: degenerate  Hessian with 1 negative eigenvalues"
-
-
-
-### Agregado de optimizador para ver si el modelo funciona
-control <- glmerControl(optimizer = "nloptwrap", optCtrl = list(maxfun = 100000)) #parámetros de control para la optimización
-
-Mod1_interaccion <- glmer(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control) 
-
+Mod1_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
 
 
 
@@ -808,8 +777,9 @@ car :: vif(Mod1_interaccion)
 ## Salidas de modelo:
 
 summary(Mod1_interaccion)
->>>>>>> 31a8413 (cambios del 26/08)
-Anova(Mod1_interaccion) 
+drop1(Mod1_interaccion, test="Chisq") 
+#Su propósito principal es evaluar el efecto de cada término sobre el ajuste del modelo y determinar si su eliminación deterioraría significativamente el ajuste.
+
 ## Comparaciones:
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
@@ -818,36 +788,18 @@ emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 
 
-<<<<<<< HEAD
  #-----
-# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso + (tambien *?) Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
 
-Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
-=======
+
 #-----
-# Mod2_interaccion <- CFV ~ año*Genero +  Quintil de Ingreso + (tambien *?) Género + Nivel Educativo Alcanzado + CMV + Rango etario + NBI Provincial 
+# Modelo 2 con interaccion entre Genero*Año de edicion
 
-Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control)
-# Warning message: LA SALIDA DE ESTE MODELO ME DIO ESO
-#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                  Model failed to converge with max|grad| = 0.00715947 (tol = 0.002, component 1)
-
-## Ver si aumentando de maxfun = 100000 a maxfun = 200000
-control2 <- glmerControl(optimizer = "nloptwrap", optCtrl = list(maxfun = 200000))
-Mod2_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control2)
-# Warning message:
-#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                  Model failed to converge with max|grad| = 0.0182451 (tol = 0.002, component 1)
-
-summary(Mod2_interaccion)$varcor # El resumen de las varianzas de los efectos aleatorios muestra una desviación estándar de 0.263 para el intercepto de Provincia. Esto indica que hay cierta variabilidad entre provincias en el efecto del intercepto, pero no proporciona información completa sobre el ajuste del modelo ni su convergencia.
-
-## Modelo sin var efec aleatorio:
-control_sin_int <- glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
-Mod2_interaccion_sin_aleat  <- glm(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial , ENFR_t_NBI_CNA, family = binomial, control = control_sin_int)
+Mod2_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
 
 
->>>>>>> 31a8413 (cambios del 26/08)
+#summary(Mod2_interaccion)$varcor # El resumen de las varianzas de los efectos aleatorios muestra una desviación estándar de 0.263 para el intercepto de Provincia. Esto indica que hay cierta variabilidad entre provincias en el efecto del intercepto, pero no proporciona información completa sobre el ajuste del modelo ni su convergencia.
+
 
 ## Variable de efectos aleatorios:
 
@@ -857,10 +809,39 @@ car :: vif(Mod2_interaccion)
 
 ## Salidas de modelo:
 
-Anova(Mod2_interaccion)
+summary(Mod2_interaccion)
+drop1(Mod2_interaccion, test = "Chisq")
+
 
 ## Comparaciones:
 emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+emmeans(, pairwise ~  , type = "response")
+
+
+
+
+#-----
+## Modelo 3 con interaccion: Dos interacciones dobles
+
+Mod3_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+
+
+# Salida de modelos: 
+summary(Mod3_interaccion)
+drop1(Mod3_interaccion, test = "Chisq")
+
+
+
+
+
+## Colinealidad?
+car :: vif(Mod3_interaccion)
+
+
+## Comparaciones:
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
@@ -868,38 +849,39 @@ emmeans(, pairwise ~  , type = "response")
 
 
 #-----
-# Mod3_interaccion <- CFV ~  genero * quintil_ingresos*año_edicion  + nivel_instruccion + NBI_Provincial + CarenciasVivienda + rango_edad + (1/ Provincia)
 
-<<<<<<< HEAD
-Mod3_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial(), control = control)
-=======
-Mod3_interaccion  <- glmer(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Sit_laboral + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial, control = control)
->>>>>>> 31a8413 (cambios del 26/08)
+## Modelo 4 con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion: LO CORRI SON  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA
 
-## Variable de efectos aleatorios:
-
-## Colinealidad?
-car :: vif(Mod3_interaccion)
-
+Mod4_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Quintil_ingresos*Año_Edicion + Rango_edad + Nivel_de_instrucción   +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial())
+# + Terciles_NBI_provincial
 
 ## Salidas de modelo:
-<<<<<<< HEAD
 
-Anova(Mod3_interaccion)
+summary(Mod4_interaccion)
+drop1(Mod4_interaccion, test="Chisq")
+
+## Colinealidad
+
+car :: vif(Mod4_interaccion)
+
+#------
+## Modelo 5: Triple interaction
+
+Mod5_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+
+## Salidas de modelo:
+
+summary(Mod5_interaccion)
+
+drop1(Mod5_interaccion, test = "Chisq")
 
 ## Comparaciones:
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
 emmeans(, pairwise ~  , type = "response")
-=======
->>>>>>> 31a8413 (cambios del 26/08)
 
-Anova(Mod3_interaccion)
 
-## Comparaciones:
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
+
+
 
