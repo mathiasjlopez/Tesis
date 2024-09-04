@@ -11,6 +11,7 @@ install.packages("car")
 install.packages("emmeans")
 install.packages("lme4")
 install.packages("GGally")
+install.packages("effects")
 
 
 
@@ -23,9 +24,11 @@ library(psych)
 library(car)
 library(emmeans)
 library(GGally)
+library(effects)
+
 #---
 # 1) git add .
-# 2) git commit -m "cambios del 26/08"
+# 2) git commit -m "cambios del 29/08"
 # 3) git push
 
 #---
@@ -35,7 +38,7 @@ library(GGally)
 ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
  
- NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
+NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
 
 
 #______________________________________________________________________________________________________________
@@ -67,6 +70,7 @@ ENFR_temporal$Cumple_No_Cumple_FyV<- factor(ENFR_temporal$Cumple_No_Cumple_FyV)
 
 ENFR_temporal$Rango_edad <- factor(ENFR_temporal$Rango_edad)
 
+
 #NBI_CNA:
 
 NBI_CNA$Año_Edicion <- factor(NBI_CNA$Año_Edicion)
@@ -87,28 +91,8 @@ colSums(is.na(ENFR_temporal)) # Vienen de Ingreso_mensual_pesos_hogar + Quintil_
 ENFR_temporal <- na.omit(ENFR_temporal)
 
 #---
-## La variable Provincia esta dando problemas en los modelos, vamos a ver que onda:
-
-table(ENFR_temporal$Provincia)
-any(is.na(ENFR_temporal$Provincia)) # Provincia no tiene datos faltantes
-
-# Creamos variable provincia sin los datos de mayor pero y otro sin los datos de menor peso(datos registrados) para ver si esto gebera algo
-
-ENFR_temporal <-ENFR_temporal %>% 
-  filter( !(Provincia %in% c("Buenos Aires", )))
-
-# Filtrar provincias con menos datos
-provincias_pocas_datos <- c("Tierra del Fuego", "Santiago del Estero")  # Ajusta según el análisis
-
-# Subconjunto de datos con estas provincias
-ENFR_pocas_datos <- ENFR_temporal %>% 
-  filter(Provincia %in% provincias_pocas_datos)
-
-str(ENFR_pocas_datos)
-sum(is.na(ENFR_pocas_datos))
-
-ENFR_pocas_datos <- na.omit(ENFR_pocas_datos)
-
+summary(ENFR_temporal)
+table(ENFR_temporal)
 
 ###_____________________________________________________________________________
 
@@ -324,6 +308,9 @@ table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
 
+#---
+
+
 #_______________________________________________________________________________
 
 
@@ -331,7 +318,7 @@ str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
 
 
-                         ### MODELOS SIMPLES ###
+                                                                     ### MODELOS SIMPLES ###
 
  
  
@@ -547,8 +534,8 @@ m1i <- glmer(Cumple_No_Cumple_FyV ~ Porcentaje_hogares_NBI + (1|Provincia ), ENF
  
 #__________________________________________________________________________________________________________________________________________________________________________________ 
  
-
-                ### MODELOS MULTIPLES (mas de una variable) ###
+ 
+                                                       ### MODELOS MULTIPLES (mas de una variable) ###
 
  
  
@@ -743,7 +730,7 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
  #_________________________________________________________________________________________________________________________________________________________________________________
  
  
-                        ### MODELOS CON INTERACCION ###
+                                                                 ### MODELOS CON INTERACCION ###
 
 
 
@@ -761,17 +748,10 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
 
 #---
 
-# Modelo 1 con interaccion Genero*Quintil de ingresos:
+### Modelo 1 con interaccion Genero*Quintil de ingresos:
 
 
-Mod1_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
-
-
-
-## Variable de efectos aleatorios:
-
-## Colinealidad?
-car :: vif(Mod1_interaccion)
+Mod1_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
 
 
 ## Salidas de modelo:
@@ -781,20 +761,188 @@ drop1(Mod1_interaccion, test="Chisq")
 #Su propósito principal es evaluar el efecto de cada término sobre el ajuste del modelo y determinar si su eliminación deterioraría significativamente el ajuste.
 
 ## Comparaciones:
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
 
+#Interacciones:
+emmeans(Mod1_interaccion, pairwise ~ Genero|Quintil_ingresos)
+emmeans(Mod1_interaccion, pairwise ~ Genero|Quintil_ingresos*Año_Edicion, type = "response")
+
+emm_interaccion_mod1 <- emmeans(Mod1_interaccion, pairwise ~ Genero|Quintil_ingresos)
+plot(emmeans(Mod1_interaccion, pairwise ~ Genero|Quintil_ingresos), comparison = TRUE, type = "response")
+
+# Variables aisladas:
+#Escala del predictor lineal:
+emmeans(Mod1_interaccion, pairwise ~ Rango_edad  )
+emmeans(Mod1_interaccion, pairwise ~ Año_Edicion )
+emmeans(Mod1_interaccion, pairwise ~ Nivel_de_instrucción )
+emmeans(Mod1_interaccion, pairwise ~ Indice_NBI_hogar_dic )
+
+#Escala de VR:
+emmeans(Mod1_interaccion, pairwise ~ Rango_edad  , type = "response")
+emmeans(Mod1_interaccion, pairwise ~ Año_Edicion , type = "response")
+emmeans(Mod1_interaccion, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(Mod1_interaccion, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+emmeans(Mod1_interaccion, pairwise ~ Genero  , type = "response")
+emmeans(Mod1_interaccion, pairwise ~ Quintil_ingresos  , type = "response")
+
+
+
+#Graficos de efectos marginales:
+
+# Efectos marginales de la interacción Género:Quintil_ingresos
+efecto_genero_quintil <- allEffects(Mod1_interaccion, focus = "Genero:Quintil_ingresos")
+plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
+
+
+
+
+
+## Variable de efectos aleatorios:
+
+## Colinealidad?
+car :: vif(Mod1_interaccion)
 
  #-----
 
 
-#-----
-# Modelo 2 con interaccion entre Genero*Año de edicion
 
-Mod2_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+#-----
+## Modelo 2 con interaccion: Dos interacciones dobles
+
+Mod2_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+
+
+## Salida de modelos: 
+summary(Mod2_interaccion)
+drop1(Mod2_interaccion, test = "Chisq")
+
+## Comparaciones:
+#Interacciones:
+
+emmeans(Mod2_interaccion, pairwise ~ Genero|Quintil_ingresos, type = "response")
+#emm_interaccion_mod2 <- emmeans(Mod2_interaccion, pairwise ~ )
+#plot(emm_interaccion_mod2, comparison = TRUE, type = "response")
+
+# Variables aisladas:
+emmeans(Mod2_interaccion, pairwise ~ Rango_edad  , type = "response")
+emmeans(Mod2_interaccion, pairwise ~ Año_Edicion , type = "response")
+emmeans(Mod2_interaccion, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(Mod2_interaccion, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+
+
+#Graficos de efectos marginales:
+
+# Efectos marginales de la interacción Género:Quintil_ingresos
+efecto_genero_quintil <- allEffects(Mod2_interaccion, focus = "Genero:Quintil_ingresos")
+
+# Efectos marginales de la interacción Género:Año_edicion
+efecto_genero_anio <- allEffects(Mod2_interaccion, focus = "Genero:Año_Edicion")
+
+# Graficar los efectos marginales para Genero:Quintil_ingresos
+plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
+
+# Graficar los efectos marginales para Genero:Año_edicion
+plot(efecto_genero_anio, main="Efecto Marginal:genero y Año de Edición")
+
+
+
+
+## Colinealidad?
+car :: vif(Mod2_interaccion)
+
+#-----
+
+## Modelo 3: con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion: 
+#(LO CORRI SON  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA)
+
+Mod3_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Quintil_ingresos*Año_Edicion + Rango_edad + Nivel_de_instrucción   +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial())
+# + Terciles_NBI_provincial
+
+## Salidas de modelo:
+
+summary(Mod3_interaccion)
+drop1(Mod3_interaccion, test="Chisq")
+
+#Interacciones:
+# emm_interaccion_mod3 <- emmeans(Mod3_interaccion, pairwise ~ Genero*Quintil_ingresos)
+# plot(emm_interaccion_mod3, comparison = TRUE, type = "response")
+
+emmeans(Mod3_interaccion, pairwise ~ Genero|Quintil_ingresos, type = "response" )
+emmeans(Mod3_interaccion, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+
+# Emmeans y comparaciones con intervalos de confianza:
+em_IC <- emmeans(Mod3_interaccion, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+confint(contrast(em_IC, method = "revpairwise", adjust = "none"), level = 0.95)
+
+# Variables aisladas:
+emmeans(Mod3_interaccion, pairwise ~ Rango_edad  , type = "response")
+emmeans(Mod3_interaccion, pairwise ~ Año_Edicion , type = "response")
+emmeans(Mod3_interaccion, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(Mod3_interaccion, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+
+## Colinealidad
+
+car :: vif(Mod3_interaccion)
+
+
+#Graficos de efectos marginales:
+
+# Efectos marginales de la interacción Género:Quintil_ingresos
+efecto_genero_quintil <- allEffects(Mod3_interaccion, focus = "Genero:Quintil_ingresos")
+
+# Efectos marginales de la interacción Género:Año_edicion
+efecto_genero_anio <- allEffects(Mod3_interaccion, focus = "Quintil_ingresos:Año_Edicion")
+
+# Graficar los efectos marginales para Genero:Quintil_ingresos
+plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
+
+# Graficar los efectos marginales para Genero:Año_edicion
+plot(efecto_genero_anio, main="Efecto Marginal: Quintil de ingresos y Año de Edición")
+
+
+#------
+## Modelo 4: TRIPLE INTERACCION
+
+Mod4_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+
+## Salidas de modelo:
+
+summary(Mod4_interaccion)
+
+drop1(Mod4_interaccion, test = "Chisq")
+
+## Comparaciones
+# Como no es significativa la interaccion, no hacemos comparaciones de la interaccion
+
+# Variables aisladas:
+emmeans(Mod4_interaccion, pairwise ~ Rango_edad  , type = "response")
+emmeans(Mod4_interaccion, pairwise ~ Año_Edicion , type = "response")
+emmeans(Mod4_interaccion, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(Mod4_interaccion, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+emmeans(Mod4_interaccion, pairwise ~ Genero , type = "response")
+emmeans(Mod4_interaccion, pairwise ~ Quintil_ingresos, type = "response" )
+
+
+
+#Graficos de efectos marginales:
+
+# Efectos marginales para la triple interacción Genero:Quintil_ingresos:Año_Edicion
+efecto_triple <- allEffects(Mod5_interaccion, focus = "Genero:Quintil_ingresos:Año_Edicion")
+
+# Crear un dataframe con las variables correctas
+df_triple <- data.frame(
+  Año_Edicion = factor(rep(c("2009", "2013", "2018"), each = 8 * 4)),  # Ajusta según tus años y niveles
+  Genero = factor(rep(c("Masculino", "Femenino"), each = 8 * 3)),  # Ajusta según tus géneros
+  Quintil_ingresos = factor(rep(c("Bajo", "Medio", "Alto"), times = 8 * 2)),  # Ajusta según tus quintiles
+  fit = runif(7),  # Aquí pondrías los valores reales de fit
+  lower = runif(7),  # Aquí pondrías los valores reales de lower
+  upper = runif(7)  # Aquí pondrías los valores reales de upper
+)
+
+#-----
+
+### Modelo  con interaccion entre Genero*Año de edicion: MODELO QUE SOLE NO TUVO EN CUENTA
+
+Mod_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion + Quintil_ingresos + Rango_edad  + Nivel_de_instrucción + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
 
 
@@ -813,75 +961,23 @@ summary(Mod2_interaccion)
 drop1(Mod2_interaccion, test = "Chisq")
 
 
-## Comparaciones:
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
+#Interacciones:
+emmeans(Mod1_interaccion, pairwise ~ Genero:Quintil_ingresos)
+plot(emm_interaccion_mod1, comparison = TRUE, type = "response")
+
+# Variables aisladas:
+emmeans(Mod_interaccion, pairwise ~ Rango_edad  , type = "response")
+emmeans(Mod_interaccion, pairwise ~ Año_Edicion , type = "response")
+emmeans(Mod_interaccion, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(Mod_interaccion, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+emmeans(Mod_interaccion, pairwise ~ Genero , type = "response")
+emmeans(Mod_interaccion, pairwise ~ Quintil_ingresos, type = "response" )
 
 
+#Graficos de efectos marginales:
 
-
-#-----
-## Modelo 3 con interaccion: Dos interacciones dobles
-
-Mod3_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
-
-
-# Salida de modelos: 
-summary(Mod3_interaccion)
-drop1(Mod3_interaccion, test = "Chisq")
-
-
-
-
-
-## Colinealidad?
-car :: vif(Mod3_interaccion)
-
-
-## Comparaciones:
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-
-
-#-----
-
-## Modelo 4 con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion: LO CORRI SON  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA
-
-Mod4_interaccion <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Quintil_ingresos*Año_Edicion + Rango_edad + Nivel_de_instrucción   +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial())
-# + Terciles_NBI_provincial
-
-## Salidas de modelo:
-
-summary(Mod4_interaccion)
-drop1(Mod4_interaccion, test="Chisq")
-
-## Colinealidad
-
-car :: vif(Mod4_interaccion)
-
-#------
-## Modelo 5: Triple interaction
-
-Mod5_interaccion  <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
-
-## Salidas de modelo:
-
-summary(Mod5_interaccion)
-
-drop1(Mod5_interaccion, test = "Chisq")
-
-## Comparaciones:
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-emmeans(, pairwise ~  , type = "response")
-
-
-
+# Efectos marginales de la interacción Género:Quintil_ingresos
+efecto_genero_quintil <- allEffects(Mod1_interaccion, focus = "Genero:Quintil_ingresos")
+plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
 
 
