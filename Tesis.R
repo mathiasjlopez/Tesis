@@ -1,5 +1,7 @@
 rm(list = ls())
 
+
+#Paquetes:
 install.packages("glmmTMB")
 #install.packages("TMB")
 install.packages("TMB", type = "source")
@@ -14,25 +16,27 @@ install.packages("GGally")
 install.packages("effects")
 
 
-
+# Librerias:
 library(lme4)
 library(glmmTMB)
 library(tidyverse)
+library(emmeans)
 library(ggplot2)
 library(DHARMa)
 library(psych)
 library(car)
-library(emmeans)
 library(GGally)
 library(effects)
 
 #---
 # 1) git add .
-# 2) git commit -m "cambios del 4/09"
+# 2) git commit -m "Rorganizacion de modelos"
 # 3) git push
 
 #---
 
+
+#______________________________________________________________________________________________________________
 #_____________________________________________________________________________________________________________
 
 ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
@@ -42,6 +46,8 @@ NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header 
 
 
 #______________________________________________________________________________________________________________
+#______________________________________________________________________________________________________________
+
 
 ### Algunos arreglos en el dataset:
 
@@ -80,8 +86,8 @@ NBI_CNA$Porcentaje_hogares_NBI <- as.numeric(NBI_CNA$Porcentaje_hogares_NBI)
 #---
 ## Transformamos Edad a numerico:
 
-EN
-FR_temporal$Edad <- as.numeric(ENFR_temporal$Edad)
+
+ENFR_temporal$Edad <- as.numeric(ENFR_temporal$Edad)
 
 #---
 ## Ver que onda los Na`s:
@@ -310,14 +316,22 @@ str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
 
 #---
+ENFR_t_NBI_CNA %>% 
+  select(Rango_edad) %>% 
+  filter(Rango_edad == 6)
 
 
-#_______________________________________________________________________________
 
 
 #_________________________________________________________________________________________________________________________________________________________________________________
+#_________________________________________________________________________________________________________________________________________________________________________________
 
 
+
+                                                                 ### PRIMERA PARTE: TEMPORAL ###
+
+
+#_______________________________________________________________________________
 
                                                                      ### MODELOS SIMPLES ###
 
@@ -750,6 +764,8 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
 
 #-------------------------------------------------------------------------------
 
+
+
                                                           ### MODELO A: TRIPLE INTERACCION ###
 
 ModeloA <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
@@ -791,12 +807,24 @@ df_triple <- data.frame(
 
 
 ##------------------------------------------------------------------------------
+modeloB <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Indice_NBI_hogar_dic + Quintil_ingresos*Año_Edicion + Edad + Nivel_de_instrucción   +(1|Provincia ), ENFR_temporal, family = binomial())
+summary(modeloB)
+drop1(modeloB, test="Chisq")
+AIC(modeloB)
+emmeans(modeloB, pairwise ~ Genero, type = "response" )
+
+
+#-------------------------------------------------------------------------------
+
+
 
                                    ### MODELO B: con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion ### 
 
-#(LO CORRI SIN  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA)
 
-ModeloB <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Quintil_ingresos*Año_Edicion + Rango_edad + Nivel_de_instrucción   +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial())
+#(LO CORRI SIN  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA)
+# LO VOLVI A CORRER Y LA VARIABLE "Terciles_NBI_provincial" DIO SIGNIFICATIVA!!!!! LA DEJAMOS, FIUF
+
+ModeloB <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Quintil_ingresos*Año_Edicion + Rango_edad + Nivel_de_instrucción + Indice_NBI_hogar_dic  + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 # + Terciles_NBI_provincial
 
 ## Salidas de modelo:
@@ -807,25 +835,75 @@ drop1(ModeloB, test="Chisq")
 
 AIC(ModeloB)
 
-###Interacciones###
 
-# emm_interaccion_mod3 <- emmeans(ModeloB, pairwise ~ Genero*Quintil_ingresos)
-# plot(emm_interaccion_mod3, comparison = TRUE, type = "response")
+  ###Interacciones###
 
+# Genero | Quintil_ingresos: Comparaciones dentro de cada nivel de Quintil_ingresos: COMPARACIONES A PRIORI.
+# Genero * Quintil_ingresos: Todas las comparaciones cruzadas entre los niveles de Genero y Quintil_ingresos: COMPARACIONES A POSTERIORI.
+
+
+# Genero y Quintil
 emmeans(ModeloB, pairwise ~ Genero|Quintil_ingresos, type = "response" )
-emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
-
-# Emmeans y comparaciones con intervalos de confianza:
-em_IC <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
-confint(contrast(em_IC, method = "revpairwise", adjust = "none"), level = 0.95)
-
 plot(emmeans(ModeloB, pairwise ~ Genero|Quintil_ingresos), comparison = TRUE, type = "response")
 
+# emmeans(ModeloB, pairwise ~ Quintil_ingresos|Genero, type = "response" )
+# plot(emmeans(ModeloB, pairwise ~ Quintil_ingresos|Genero), comparison = TRUE, type = "response")
+
+# Quintil y Año de edicion
+emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+plot(emmeans(ModeloB, pairwise ~ Quintil_ingresos|Año_Edicion), comparison = TRUE, type = "response")
+
+# emmeans(ModeloB, revpairwise ~ Año_Edicion|Quintil_ingresos, type = "response")
+# plot(emmeans(ModeloB, pairwise ~ Año_Edicion|Quintil_ingresos), comparison = TRUE, type = "response")
+
+
+
+
+  ### Emmeans y comparaciones generales (con intervalos de confianza):
+
+  # Quintil*Año:
+em_IC_QuintilVSaño <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+confint(contrast(em_IC_QuintilVSaño, method = "revpairwise", adjust = "none"), level = 0.95)
+
+  # Genero*Quintil:
+em_IC_generoVSquintil <- emmeans(ModeloB, pairwise ~ Genero|Quintil_ingresos, type = "response")
+confint(contrast(em_IC_generoVSquintil, method = "pairwise", adjust = "none"), level = 0.95)
+confint(em_IC_generoVSquintil, method = "pairwise", adjust = "none", level = 0.95)
+
+
 # Variables aisladas:
-emmeans(ModeloB, pairwise ~ Rango_edad  , type = "response")
-emmeans(ModeloB, pairwise ~ Año_Edicion , type = "response")
-emmeans(ModeloB, pairwise ~ Nivel_de_instrucción , type = "response")
+emmeans(ModeloB, revpairwise ~ Rango_edad  , type = "response")
+plot(emmeans(ModeloB, pairwise ~ Rango_edad, type = "response"), comparison = TRUE)
+
+emmeans(ModeloB, revpairwise ~ Nivel_de_instrucción , type = "response")
+plot(emmeans(ModeloB, pairwise ~ Nivel_de_instrucción, type = "response"), comparison = TRUE)
+
 emmeans(ModeloB, pairwise ~ Indice_NBI_hogar_dic , type = "response")
+plot(emmeans(ModeloB, pairwise ~ Indice_NBI_hogar_dic , type = "response"), comparise = TRUE)
+
+### Grafico final para congreso ###
+# Quintil*Año:
+em_IC_QuintilVSaño <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+Emm_df <- as.data.frame(em_IC_QuintilVSaño$emmeans)
+names(Emm_df)
+
+ggplot( Emm_df, mapping = aes( x = Quintil_ingresos, y = prob, color = Año_Edicion))+
+  geom_point(size = 4)+
+  geom_errorbar(aes(ymin = asymp.LCL , ymax= asymp.UCL ), 
+                width = 0.1)+
+  labs(
+    title = "Probabilidad en el CFyV segun quintil de pertenencia para las tres ediciones",
+    fill = "Año de edicion",
+    x = "Quintil de ingreso",
+    y = "Probabilidad de un CFyV minimo recomendado",
+    caption = ""
+  ) +
+  theme_bw()+
+  
+
+
+
+          
 
 ### Colinealidad###
 
@@ -835,7 +913,7 @@ car :: vif(ModeloB)
 #Graficos de efectos marginales:
 
 # Efectos marginales de la interacción Género:Quintil_ingresos
-efecto_genero_quintil <- allEffects(ModeloB, focus = "Genero:Quintil_ingresos")
+efecto_genero_quintil <- allEffects(ModeloB, focus = "Genero|Quintil_ingresos")
 
 # Efectos marginales de la interacción Género:Año_edicion
 efecto_genero_anio <- allEffects(ModeloB, focus = "Quintil_ingresos:Año_Edicion")
@@ -851,6 +929,8 @@ plot(efecto_genero_anio, main="Efecto Marginal: Quintil de ingresos y Año de Ed
 
 
 ##------------------------------------------------------------------------------
+
+
 
                                ### MODELO C con interaccion: Dos interacciones dobles (genero*Quintil y  genero*anio)###
 
@@ -900,6 +980,8 @@ car :: vif(ModeloC)
 
 
 ##------------------------------------------------------------------------------
+
+
 
                                            ### MODELO D con interaccion Genero*Quintil de ingresos ###
 
@@ -959,9 +1041,12 @@ car :: vif(ModeloD)
 
 #-------------------------------------------------------------------------------
 
+                                                                 ### Comparacion entre Modelos ####
+AIC(modeloA, modeloB, modeloC, modeloD)
+anova(modeloA, modeloB, modeloC, modeloD)
 
 
-#-----
+#-------------------------------------------------------------------------------
 
 ### Modelo  con interaccion entre Genero*Año de edicion: MODELO QUE SOLE NO TUVO EN CUENTA
 
@@ -1004,4 +1089,14 @@ efecto_genero_quintil <- allEffects(Mod1_interaccion, focus = "Genero:Quintil_in
 plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
 
 
-#-----
+#-------------------------------------------------------------------------------
+#_________________________________________________________________________________________________________________________________________________________________________________
+#_________________________________________________________________________________________________________________________________________________________________________________
+
+                                                          ### Segunda parte: AMBIENTAL (Ojala sea AMBIENTAL + TEMPORAL)
+
+#_______________________________________________________________________________
+
+
+
+
