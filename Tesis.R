@@ -29,7 +29,7 @@ library(GGally)
 library(effects)
 
 #---
-# 1) 
+# 1) git add .
 # 2) git commit -m "Actualizacion 30/09"
 # 3) git push
 
@@ -39,10 +39,11 @@ library(effects)
 #______________________________________________________________________________________________________________
 #_____________________________________________________________________________________________________________
 
-ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
+#ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
- 
-NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
+#NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = "."
+
+
 
 
 #______________________________________________________________________________________________________________
@@ -1496,43 +1497,58 @@ drop1(ModeloF_Amb, test = "Chisq")
 # MODELO A: Hortalizas
 
 
-ModeloA_Amb_Multiple1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+ModeloA1_Amb_Multiple <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-summary(ModeloA_Amb_Multiple1)
+summary(ModeloA1_Amb_Multiple)
 
-drop1(ModeloA1_Amb, test = "Chisq")
+drop1(ModeloA1_Amb_Multiple, test = "Chisq")
+
+
 
 # MODELO B: Hortalizas
-(1|Provincia )
 
-ModeloB_Amb_Multiple1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-summary(ModeloB1_Amb)
+ModeloB1_Amb_Multiple <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-drop1(ModeloA1_Amb, test = "Chisq")
+summary(ModeloB1_Amb_Multiple)
+
+drop1(ModeloB1_Amb_Multiple, test = "Chisq")
 
 
                                                                      ### MODELOS DE INTERACCION ###
 
-# MODELO A: Hortalizas)
+## MODELO A: 
 
-ModeloA2_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+# Hortalizas*Año edicion
 
-summary(ModeloA2_Amb)
+ModeloA2_Amb_int1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-drop1(ModeloA2_Amb, test = "Chisq")
+Anova(ModeloA2_Amb_int1)
 
-emmeans(ModeloA2_Amb, pairwise ~ GRUPO.HORTALIZAS.ha.|Año_Edicion, type = "response" )# No se puede ya que hay una var cuati
+drop1(ModeloA2_Amb_int1, test = "Chisq")
 
-
-
-
-# MODELO B: Frutales
+emmeans(ModeloA2_Amb_int1, pairwise ~ GRUPO.HORTALIZAS.ha.|Año_Edicion, type = "response" )# No se puede ya que hay una var cuati
 
 
-ModeloB2_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+# Hortalizas*Quintil ingreso
 
-summary(ModeloB2_Amb)
+ModeloA2_Amb_int2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Quintil_ingresos + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-drop1(ModeloA2_Amb, test = "Chisq")
+Anova(ModeloA2_Amb_int2)
 
+
+# MODELO B: 
+
+# Frutales*Año edicion
+
+ModeloB2_Amb_int1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+Anova(ModeloB2_Amb_int1)
+
+drop1(ModeloA2_Amb_int1, test = "Chisq")
+
+# Frutales*Quintil ingreso
+
+ModeloB2_Amb_int2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Quintil_ingresos + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+Anova(ModeloB2_Amb_int2)
