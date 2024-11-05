@@ -29,8 +29,8 @@ library(GGally)
 library(effects)
 
 #---
-# 1) git add .
-# 2) git commit -m "Rorganizacion de modelos"
+# 1) 
+# 2) git commit -m "Actualizacion 30/09"
 # 3) git push
 
 #---
@@ -82,6 +82,7 @@ ENFR_temporal$Rango_edad <- factor(ENFR_temporal$Rango_edad)
 NBI_CNA$Año_Edicion <- factor(NBI_CNA$Año_Edicion)
 NBI_CNA$Provincia <- factor(NBI_CNA$Provincia)
 NBI_CNA$Porcentaje_hogares_NBI <- as.numeric(NBI_CNA$Porcentaje_hogares_NBI)
+NBI_CNA$Cod_region <- factor(NBI_CNA$Cod_region)
 
 #---
 ## Transformamos Edad a numerico:
@@ -98,8 +99,7 @@ colSums(is.na(ENFR_temporal)) # Vienen de Ingreso_mensual_pesos_hogar + Quintil_
 ENFR_temporal <- na.omit(ENFR_temporal)
 
 #---
-summary(ENFR_temporal)
-table(ENFR_temporal)
+
 
 ###_____________________________________________________________________________
 
@@ -273,30 +273,42 @@ sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
 
 describeBy(ENFR_temporal$Promedio_fyv_dia, group = ENFR_temporal$Año_Edicion)
 
+
+
+
+#_______________________________________________________________________________
 #_______________________________________________________________________________
 
-### Creando un nuevo dataset con ambas bases para laburar en modelos con interaccion
+
+
+ 
+                                                    ### DATASET ENFR 09 13 y 18 + NBI Provincial 09 13 y 18 + CNA 09 y 18 ### 
+
+## Creando un nuevo dataset con ambas bases para laburar en modelos con interaccion:  
 
 ENFR_t_NBI_CNA <- ENFR_temporal %>% 
-  left_join(NBI_CNA %>% select(Año_Edicion, Provincia, Porcentaje_hogares_NBI),
-            by = c("Año_Edicion", "Provincia") )
+  left_join(NBI_CNA, by = c("Año_Edicion", "Provincia") ) 
+
+ENFR_t_NBI_CNA <- ENFR_t_NBI_CNA %>% 
+  select(-Cod_region.x, -X.1, -X.y, Cod_region.y )
             
+
+ENFR_t_NBI_CNA <- ENFR_t_NBI_CNA %>% 
+  mutate(Ha_Frut_x_TotalHa = Ha_Frut_x_TotalHa*100,
+         Ha_Hort_x_TotalHa = Ha_Hort_x_TotalHa*100)
+
+
 str(ENFR_t_NBI_CNA)
 sum(is.na(ENFR_t_NBI_CNA))
-# Eliminamos los NA:
-
-ENFR_t_NBI_CNA <- na.omit(ENFR_t_NBI_CNA)
 
 boxplot(ENFR_t_NBI_CNA$porcentaje_hogares_NBI)
 
 
 # Explorando un poquito los datos de esta nueva base:
 
-# ENFR_t_NBI_CNA %>% 
-#   select(Provincia, Año_Edicion, Cumple_No_Cumple_FyV, Porcentaje_hogares_NBI) %>% 
-#   filter( Provincia == "Tierra del Fuego", Año_Edicion == 2009) # LOS VALORES DE PORCENTAJE NBI SE VAN A REPETIR TODAS  LAS VECES QUE EN UN AÑO SE REPITAN LOS ENCUESTADOS EN UNA PROVINCIA.
-
-
+ENFR_t_NBI_CNA %>% 
+   select(Provincia, Año_Edicion, Cumple_No_Cumple_FyV, Porcentaje_hogares_NBI) %>% 
+   filter( Provincia == "Tierra del Fuego", Año_Edicion == 2009) # LOS VALORES DE PORCENTAJE NBI SE VAN A REPETIR TODAS  LAS VECES QUE EN UN AÑO SE REPITAN LOS ENCUESTADOS EN UNA PROVINCIA.
 
 ### Modificar la variable Procentaje de hogares nbi:
 # Calcular los puntos de corte para los terciles
@@ -314,14 +326,272 @@ ENFR_t_NBI_CNA$Terciles_NBI_provincial <- cut(ENFR_t_NBI_CNA$Porcentaje_hogares_
 table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
+#---
+### Dataset para produccion NAF y ENFR: Para ver si da significativo
+
+ENFR_produ_NAF_09y13 <- ENFR_temporal %>%
+  filter(Año_Edicion != 2018) %>%
+  left_join(Produccion_NFA_09y13, by = c("Año_Edicion", "Provincia"))
+
+
+
+
+
+# Verificar la nueva variable
+table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
+str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
+
 
 #---
-ENFR_t_NBI_CNA %>% 
-  select(Rango_edad) %>% 
-  filter(Rango_edad == 6)
 
 
 
+#_______________________________________________________________________________
+
+# Exploratorio de CNA 09 y 18
+
+# Boxplot:
+# Hortalizas
+ggplot( data = subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., color = Año_Edicion)) +
+  geom_boxplot()+
+  geom_jitter(width = 0.2, size = 2, alpha = 0.6, color = "skyblue")
+
+#Frutales
+ggplot( data = subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.FRUTALES.ha., color = Año_Edicion)) +
+  geom_boxplot()+
+  geom_jitter(width = 0.2, size = 2, alpha = 0.6, color = "skyblue")
+
+
+# Cantidad de EAP frutihorticola totales en los años 09 y 18:
+
+#Hortalizas
+
+ggplot(data = subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., color = Año_Edicion )) +
+  geom_col()+
+  scale_y_continuous(labels = scales::comma) #Le saca la notacion cienfica
+
+# Frutales
+
+ggplot(subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes( x = Año_Edicion, y = GRUPO.FRUTALES.ha., color = Año_Edicion )) +
+  geom_col()+
+  scale_y_continuous(labels = scales::comma)
+
+
+# Cantidad de EAP frutihorticola por provincia, por año y comparadas a ambos años:
+
+library(forcats)
+
+# Hortalizas
+
+ggplot(subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., fill = Provincia)) +
+  geom_col(position = "dodge")
+
+ggplot(subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., fill = fct_reorder(Provincia, -GRUPO.HORTALIZAS.ha.))) +
+  geom_col(position = "dodge") # OREDENADO DE MAYOR A MENOR.
+
+# Frutales
+
+ggplot( subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes( x = Año_Edicion, y = GRUPO.FRUTALES.ha., fill = Provincia)) +
+  geom_col( position = "dodge")
+
+ggplot( subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes( x = Año_Edicion, y = GRUPO.FRUTALES.ha., fill = fct_reorder(Provincia, -GRUPO.FRUTALES.ha.))) +
+  geom_col( position = "dodge")
+
+#---
+
+# Cumplimiento del consumo:
+  
+  cumplimiento_CFyV_Graf_2009 <- ENFR_t_NBI_CNA %>%
+  select(Año_Edicion, Provincia, Cumple_No_Cumple_FyV) %>%
+  filter(Cumple_No_Cumple_FyV == 1 & Año_Edicion == 2009) %>%
+  group_by(Provincia) %>%
+  summarise(Num_Personas = sum( n()))
+
+Cumplimiento_CFyV_Graf_2018 <- ENFR_t_NBI_CNA %>%
+  select(Año_Edicion, Provincia, Cumple_No_Cumple_FyV) %>%
+  filter(Cumple_No_Cumple_FyV == 1 & Año_Edicion == 2018) %>%
+  group_by(Provincia) %>%
+  summarise(Num_Personas =sum( n()))
+
+
+# No cumplimiento:
+
+No_cumplimiento_CFyV_Graf_2009 <- ENFR_t_NBI_CNA %>%
+  select(Año_Edicion, Provincia, Cumple_No_Cumple_FyV) %>%
+  filter(Cumple_No_Cumple_FyV == 0 & Año_Edicion == 2009) %>%
+  group_by(Provincia) %>%
+  summarise(Num_Personas = sum( n()))
+
+No_cumplimiento_CFyV_Graf_2018 <- ENFR_t_NBI_CNA %>%
+  select(Año_Edicion, Provincia, Cumple_No_Cumple_FyV) %>%
+  filter(Cumple_No_Cumple_FyV == 0 & Año_Edicion == 2018) %>%
+  group_by(Provincia) %>%
+  summarise(Num_Personas = sum( n()))
+
+ggplot(cumplimiento_CFyF_Graf, mapping = aes(x = Cumple_No_Cumple_FyV, fill = Provincia)) +
+  geom_bar(position = "dodge")
+
+# GRAFICOS:
+# No cumple con el consumo
+
+ggplot(subset(ENFR_t_NBI_CNA, Cumple_No_Cumple_FyV == 0), mapping = aes( x = Cumple_No_Cumple_FyV, fill = Provincia)) +
+  geom_bar(position = "dodge")
+
+#---
+
+
+# Juntamos Grafico de columnas de hetarear y personas que hayan o no cumplido con el CFyV
+
+Grafico_cumple_CFyV_Ha_2009 <- NBI_CNA_09_18 %>%
+  filter( Año_Edicion == 2009) %>%
+  select( Año_Edicion, Provincia, GRUPO.HORTALIZAS.ha., GRUPO.FRUTALES.ha.) %>%
+  left_join(cumplimiento_CFyV_Graf_2009 , by = c("Provincia"))
+
+Grafico_Nocumple_CFyV_Ha_2009 <- NBI_CNA_09_18 %>%
+  filter( Año_Edicion == 2009) %>%
+  select( Año_Edicion, Provincia, GRUPO.HORTALIZAS.ha., GRUPO.FRUTALES.ha.) %>%
+  left_join( No_cumplimiento_CFyV_Graf_2009, by = "Provincia")
+
+
+
+Grafico_cumple_CFyV_Ha_2018 <- NBI_CNA_09_18 %>%
+  filter( Año_Edicion == 2018) %>%
+  select( Año_Edicion, Provincia, GRUPO.HORTALIZAS.ha., GRUPO.FRUTALES.ha.) %>%
+  left_join(Cumplimiento_CFyV_Graf_2018, by = "Provincia")
+
+Grafico_Nocumple_CFyV_Ha_2018 <- NBI_CNA_09_18 %>%
+  filter( Año_Edicion == 2018) %>%
+  select( Año_Edicion, Provincia, GRUPO.HORTALIZAS.ha., GRUPO.FRUTALES.ha.) %>%
+  left_join( No_cumplimiento_CFyV_Graf_2018, by = "Provincia")
+
+
+#---
+
+#### GRAFICOS DE LOS QUE CUMPLEN Y LAS HECTAREAS SEGUN TIPO DE PLANTACION ####
+
+## Para el 2009 ##
+
+
+
+# Grafico con factor de conversion para poder reescalar la variable de personas que cumplen: No me gusta, no representa el valor real y no me gusta visualmente.
+
+# Cálculo del factor de conversión
+max_hectareas <- max(Grafico_cumple_CFyV_Ha_2009$GRUPO.HORTALIZAS.ha., na.rm = TRUE)
+max_personas <- max(Grafico_cumple_CFyV_Ha_2009$Num_Personas, na.rm = TRUE)
+#### GRAFICOS DE LOS QUE NO CUMPLEN Y LAS HECTAREAS SEGUN TIPO DE PLANTACION ####
+
+## Para el 2009 ##
+
+# Cálculo del factor de conversión 2009:
+
+factor_conver_No_C_Hort_09 <- (max(Grafico_Nocumple_CFyV_Ha_2009$GRUPO.HORTALIZAS.ha., na.rm = T)/max(Grafico_Nocumple_CFyV_Ha_2009$Num_Personas , na.rm = T))
+factor_conver_No_C_Frut_09 <- (max(Grafico_Nocumple_CFyV_Ha_2009$GRUPO.FRUTALES.ha., na.rm = T)/ max(Grafico_Nocumple_CFyV_Ha_2009$Num_Personas , na.rm = T))
+
+# Hortaliza:
+
+ggplot(Grafico_Nocumple_CFyV_Ha_2009, aes( x = Provincia)) +
+  geom_col(  aes( y = Num_Personas * factor_conver_No_C_Hort_09), fill = "orange", position = position_nudge( x = 0.2)) +
+  geom_col( aes( y = GRUPO.HORTALIZAS.ha.), fill = "brown", postion = position_nudge( x = -0.2)) +
+  scale_y_continuous(
+    name = "EAP de Hortalizas/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . / factor_conver_No_C_Hort_09, name = "Personas que cumplen el consumo mínimo de FyV" )
+  ) +
+  theme( axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable") +
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2009)")
+
+# Frutas:
+
+ggplot( Grafico_Nocumple_CFyV_Ha_2009, aes( x = Provincia)) +
+  geom_col( aes( y = Num_Personas *factor_conver_No_C_Frut_09), fill = "orange", position = position_nudge( x = 0.2)) +
+  geom_col( aes( y = GRUPO.FRUTALES.ha.), fill = "red", position = position_nudge( x = -0.2)) +
+  scale_y_continuous(
+    name = "EAP de Frutas/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . / factor_conver_No_C_Frut_09, name = "Personas que cumplen el consumo mínimo de FyV")
+  ) +
+  theme(axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable")+
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2009)")
+
+# Frutas y Hortalizas + Numero de personas por provincias:
+
+ggplot( Grafico_Nocumple_CFyV_Ha_2009, aes( x = Provincia)) +
+  geom_col( aes( y = Num_Personas *factor_conver_No_C_Frut_09), fill = "orange", position = position_nudge( x = 0.15)) +
+  geom_col( aes( y = GRUPO.FRUTALES.ha.), fill = "red", position = position_nudge( x = -0.1)) +
+  geom_col( aes( y = GRUPO.HORTALIZAS.ha.), fill = "brown", postion = position_nudge( x = -0.2)) +
+  scale_y_continuous(
+    name = "EAP de FrutiHorticola/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . / factor_conver_No_C_Frut_09, name = "Personas que cumplen el consumo mínimo de FyV")
+  ) +
+  theme(axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable")+
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2009)")
+
+## Para el 2018 ##
+
+# Cálculo del factor de conversión 2018
+
+factor_conver_No_C_Hort_18 <- (max(Grafico_Nocumple_CFyV_Ha_2018$GRUPO.HORTALIZAS.ha., na.rm = T)/max(Grafico_Nocumple_CFyV_Ha_2018$Num_Personas, na.rm = T))
+factor_conver_No_C_Frut_18 <- (max(Grafico_Nocumple_CFyV_Ha_2018$GRUPO.FRUTALES.ha., na.rm = T)/ max(Grafico_Nocumple_CFyV_Ha_2018$Num_Personas, na.rm = T))
+
+# Hortaliza:
+
+ggplot( Grafico_Nocumple_CFyV_Ha_2018, aes( x = Provincia)) +
+  geom_col( aes( y = Num_Personas * factor_conver_No_C_Hort_18 ), fill = "orange", position = position_nudge( x = 0.2)) +
+  geom_col( aes( y = GRUPO.HORTALIZAS.ha.), fill = "navyblue", position = position_nudge( x = -0.2)) +
+  scale_y_continuous(
+    name = "EAP de Hortalizas/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . /factor_conver_No_C_Hort_18, name = "Personas que cumplen el consumo mínimo de FyV" )
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs( fill = "Variable") +
+  ggtitle( "Cantidad de EAP/ha y de encuestados que no cumplieron (2018)")
+
+
+# Frutas:
+
+ggplot( Grafico_Nocumple_CFyV_Ha_2018, aes( x = Provincia)) +
+  geom_col( aes( y =  Num_Personas *factor_conver_No_C_Frut_18 ), fill = "orange", position = position_nudge( x = 0.2)) +
+  geom_col( aes( y = GRUPO.FRUTALES.ha.), fill = "blue", position = position_nudge( x = -0.2))+
+  scale_y_continuous(
+    name = "EAP de Frutas/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . /factor_conver_No_C_Frut_18, name = "Personas que cumplen el consumo mínimo de FyV" )
+  ) +
+  theme( axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable") +
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2018)")
+
+
+
+# Frutas y Verduras con numero de personas por provincia:
+
+ggplot(Grafico_Nocumple_CFyV_Ha_2018, aes( x = Provincia)) +
+  geom_col( aes( y = Num_Personas *factor_conver_No_C_Frut_18), fill = "orange", position = position_nudge( x = 0.15 )) +
+  geom_col(aes( y = GRUPO.FRUTALES.ha.), fill = "darkgray", position = position_nudge( x = -0.2) ) +
+  geom_col(aes( y = GRUPO.HORTALIZAS.ha., alpha = 0.1), fill = "purple", position = position_nudge( x = 0.2)) +
+  scale_y_continuous(
+    name = "EAP de FrutiHorticola/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . / factor_conver_No_C_Frut_18, name = "Personas que cumplen el consumo mínimo de FyV")
+  ) +
+  theme(axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable")+
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2018)")
+
+
+
+## Unimos todo:
+
+ggplot(, aes( x = Provincia)) +
+  geom_col( aes( y = Num_Personas *factor_conver_No_C_Frut_18), fill = "orange", position = position_nudge( x = 0.15 )) +
+  geom_col(aes( y = GRUPO.FRUTALES.ha.), fill = "darkgray", position = position_nudge( x = -0.2) ) +
+  geom_col(aes( y = GRUPO.HORTALIZAS.ha., alpha = 0.1), fill = "purple", position = position_nudge( x = 0.2)) +
+  scale_y_continuous(
+    name = "EAP de FrutiHorticola/Ha", labels = scales::comma,
+    sec.axis = sec_axis(~ . / factor_conver_No_C_Frut_18, name = "Personas que cumplen el consumo mínimo de FyV")
+  ) +
+  theme(axis.text.x = element_text( angle = 45, hjust = 1)) +
+  labs(fill = "Variable")+
+  ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2018)")
 
 #_________________________________________________________________________________________________________________________________________________________________________________
 #_________________________________________________________________________________________________________________________________________________________________________________
@@ -768,15 +1038,16 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
 
                                                           ### MODELO A: TRIPLE INTERACCION ###
 
-ModeloA <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+ModeloA <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic  +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
+#+ Terciles_NBI_provincial
 ## Salidas de modelo:
 
 summary(ModeloA)
 
 drop1(ModeloA, test = "Chisq")
 
-AIC(modeloA)
+AIC(ModeloA)
 ## Comparaciones
 # Como no es significativa la interaccion, no hacemos comparaciones de la interaccion
 
@@ -887,20 +1158,67 @@ em_IC_QuintilVSaño <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edic
 Emm_df <- as.data.frame(em_IC_QuintilVSaño$emmeans)
 names(Emm_df)
 
-ggplot( Emm_df, mapping = aes( x = Quintil_ingresos, y = prob, color = Año_Edicion))+
-  geom_point(size = 4)+
+#Todo los años
+em_IC_QuintilVSaño <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
+Emm_df <- as.data.frame(em_IC_QuintilVSaño$emmeans)
+names(Emm_df)
+
+install.packages("wesanderson")
+library(wesanderson)
+install.packages("ggthemes")
+library(ggthemes)
+
+Grafico_poster <- ggplot( Emm_df, mapping = aes( x = Quintil_ingresos, y = prob, color = Año_Edicion))+
+  geom_point(size = 5, shape = 16, alpha = 0.8)+
   geom_errorbar(aes(ymin = asymp.LCL , ymax= asymp.UCL ), 
-                width = 0.1)+
+                width = 0.2, size = 0.7)+
   labs(
-    title = "Probabilidad en el CFyV segun quintil de pertenencia para las tres ediciones",
-    fill = "Año de edicion",
+    title = "Probabilidad en el CFyV minimo segun quintil de pertenencia y año de ediciones",
+    color = "Año de edicion",
     x = "Quintil de ingreso",
     y = "Probabilidad de un CFyV minimo recomendado",
-    caption = ""
-  ) +
-  theme_bw()+
-  
+    caption = "") +
+  theme_minimal()+
+  scale_color_manual(values = c("#1f77b4", "#ff7f0e", "#d62728"))+
+  theme(
+    panel.background = element_rect(fill = "white"),  # Fondo blanco
+    plot.background = element_rect(fill = "white"),
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5, margin = margin(t = 20, r = 20, b = 40, l = 40)),
+    legend.title = element_text(size = 18),
+    axis.title.x = element_text(size = 18, face = "plain"),
+    axis.title.y = element_text(size = 18, face = "plain"),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 40)
+    
+  )
 
+
+print(Grafico_poster)
+#subtitle = "Probabilidad en el consumo minimo de FyV segun quintil de pertenencia y ediciones",
+#plot.subtitle = element_text(size = 20, hjust = 0.5, margin = margin(t = 10, r = 5, b = 30, l = 20)),
+
+ggsave("Grafico_poster.png", plot = Grafico_poster, width = 12, height = 8, dpi = 600)
+
+## Separa por año
+ggplot( Emm_df, mapping = aes( x = Quintil_ingresos, y = prob, color = Año_Edicion))+
+  geom_point(size = 4, shape = 16, alpha = 0.8)+
+  geom_errorbar(aes(ymin = asymp.LCL , ymax= asymp.UCL ), 
+                width = 0.2, size = 0.7)+
+  facet_wrap(~ Año_Edicion) +
+  labs(
+    title = "Probabilidad en el CFyV segun quintil de ingreso",
+    subtitle = "Probabilidad en el consumo minimo de FyV segun quintil pertenencia y ediciones",
+    color = "Año de edicion",
+    x = "Quintil de ingreso",
+    y = "Probabilidad de un CFyV minimo recomendado",
+    caption = "") +
+  theme_light(base_size = 14)+
+  scale_color_brewer(palette = "Dark2")+
+  theme(
+    plot.title = element_text(size = 15, face = "bold", hjust = 0.2, margin = margin(t = 10, r = 5, b = 30, l = 70)),
+    plot.subtitle = element_text(size = 13, margin = margin(t = 10, r = 5, b = 30, l = 20)),
+    legend.title = element_text(size = 10),
+    axis.title.x = element_text(size = 10, face = "plain"),
+    axis.title.y = element_text(size = 10, face = "plain") )
 
 
           
@@ -934,8 +1252,9 @@ plot(efecto_genero_anio, main="Efecto Marginal: Quintil de ingresos y Año de Ed
 
                                ### MODELO C con interaccion: Dos interacciones dobles (genero*Quintil y  genero*anio)###
 
-ModeloC <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
+ModeloC <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic  + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
+#+ Terciles_NBI_provincial
 
 ## Salida de modelos: 
 summary(ModeloC)
@@ -986,9 +1305,9 @@ car :: vif(ModeloC)
                                            ### MODELO D con interaccion Genero*Quintil de ingresos ###
 
 
-ModeloD <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic + Terciles_NBI_provincial + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
+ModeloD <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic  + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
 
-
+#+ Terciles_NBI_provincial
 ## Salidas de modelo:
 
 summary(ModeloD)
@@ -1042,7 +1361,7 @@ car :: vif(ModeloD)
 #-------------------------------------------------------------------------------
 
                                                                  ### Comparacion entre Modelos ####
-AIC(modeloA, modeloB, modeloC, modeloD)
+AIC(ModeloA, ModeloB, ModeloC, ModeloD)
 anova(modeloA, modeloB, modeloC, modeloD)
 
 
@@ -1091,12 +1410,129 @@ plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos
 
 #-------------------------------------------------------------------------------
 #_________________________________________________________________________________________________________________________________________________________________________________
+
+
 #_________________________________________________________________________________________________________________________________________________________________________________
 
+
+
+
                                                           ### Segunda parte: AMBIENTAL (Ojala sea AMBIENTAL + TEMPORAL)
+
+
 
 #_______________________________________________________________________________
 
 
+### MODELOS AMBIENTALES ###
 
+
+                                                                     ### MODELOS SIMPLES ###
+
+
+### MODELO A: Hortalizas
+
+ModeloA_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )# Con glmmTMB los valores faltantes no suelen impedir el ajuste del modelo, ya que el paquete los omite automáticamente durante el proceso.
+
+summary(ModeloA_Amb)
+
+drop1(ModeloA_Amb, test = "Chisq") # Drop1 chilla cuando el dataset tiene NA.
+
+### MODELO B: Frutales
+
+ModeloB_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB_Amb)
+
+drop1(ModeloA_Amb, test = "Chisq")
+
+
+
+
+
+### MODELO C: Hortalizas/ Ha totales
+
+ModeloC_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Hort_x_TotalHa + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloC_Amb)
+
+drop1(ModeloC_Amb, test = "Chisq")
+
+### MODELO D: Frutales/ Ha totales
+
+ModeloD_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Frut_x_TotalHa + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloD_Amb)
+
+drop1(ModeloD_Amb, test = "Chisq")
+
+
+
+
+
+### MODELO E: Hortalizas/ 10 000 habitantes
+
+ModeloE_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Hort_x_10mil_habitantes + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloE_Amb)
+
+drop1(ModeloE_Amb, test = "Chisq")
+
+### MODELO F: Frutales/ 10 000 habitantes
+
+ModeloF_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Frut_x_10mil_habitantes + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloF_Amb)
+
+drop1(ModeloF_Amb, test = "Chisq")
+
+
+
+
+
+
+                                                                     ### MODELOS MULTIPLES ###
+
+# MODELO A: Hortalizas
+
+
+ModeloA_Amb_Multiple1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloA_Amb_Multiple1)
+
+drop1(ModeloA1_Amb, test = "Chisq")
+
+# MODELO B: Hortalizas
+(1|Provincia )
+
+ModeloB_Amb_Multiple1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB1_Amb)
+
+drop1(ModeloA1_Amb, test = "Chisq")
+
+
+                                                                     ### MODELOS DE INTERACCION ###
+
+# MODELO A: Hortalizas)
+
+ModeloA2_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloA2_Amb)
+
+drop1(ModeloA2_Amb, test = "Chisq")
+
+emmeans(ModeloA2_Amb, pairwise ~ GRUPO.HORTALIZAS.ha.|Año_Edicion, type = "response" )# No se puede ya que hay una var cuati
+
+
+
+
+# MODELO B: Frutales
+
+
+ModeloB2_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB2_Amb)
+
+drop1(ModeloA2_Amb, test = "Chisq")
 
