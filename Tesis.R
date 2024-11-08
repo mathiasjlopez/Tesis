@@ -30,7 +30,7 @@ library(effects)
 
 #---
 # 1) git add .
-# 2) git commit -m "Actualizacion 30/09"
+# 2) git commit -m "Actualizacion 5/11"
 # 3) git push
 
 #---
@@ -39,9 +39,9 @@ library(effects)
 #______________________________________________________________________________________________________________
 #_____________________________________________________________________________________________________________
 
-#ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
+ENFR_temporal <- read.csv("C:/Tesis/Datos/EsNsFR.csv", header = T, sep = ",", dec = ".")
 
-#NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = "."
+NBI_CNA <- read.csv("C:/Tesis/Datos/CNA + NBI/NBI_Prov_Total_Y_CNA.csv", header = T, sep = ",", dec = ".")
 
 
 
@@ -1439,6 +1439,11 @@ summary(ModeloA_Amb)
 
 drop1(ModeloA_Amb, test = "Chisq") # Drop1 chilla cuando el dataset tiene NA.
 
+sim <- simulateResiduals(fittedModel = ModeloA_Amb, plot = T)
+
+#  test de Kolmogorov-Smirnov (KS) es muy bajo (p = 5e-05), indicando una deviación significativa respecto a la distribución uniforme esperada. Esto sugiere que los residuos del modelo no cumplen completamente con la especificación esperada, lo que podría indicar un problema de ajuste en el modelo.
+
+
 ### MODELO B: Frutales
 
 ModeloB_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
@@ -1447,7 +1452,7 @@ summary(ModeloB_Amb)
 
 drop1(ModeloA_Amb, test = "Chisq")
 
-
+simulateResiduals(fittedModel = ModeloB_Amb, plot = T) # El test de KS da significativo.
 
 
 
@@ -1458,6 +1463,8 @@ ModeloC_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Hort_x_TotalHa + (1|Provincia )
 summary(ModeloC_Amb)
 
 drop1(ModeloC_Amb, test = "Chisq")
+
+simulateResiduals(fittedModel = ModeloC_Amb, plot = T)
 
 ### MODELO D: Frutales/ Ha totales
 
@@ -1478,6 +1485,8 @@ ModeloE_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Hort_x_10mil_habitantes + (1|Pr
 summary(ModeloE_Amb)
 
 drop1(ModeloE_Amb, test = "Chisq")
+simulateResiduals(fittedModel = ModeloE_Amb, plot = T)
+
 
 ### MODELO F: Frutales/ 10 000 habitantes
 
@@ -1486,7 +1495,7 @@ ModeloF_Amb <- glmmTMB(Cumple_No_Cumple_FyV ~ Ha_Frut_x_10mil_habitantes + (1|Pr
 summary(ModeloF_Amb)
 
 drop1(ModeloF_Amb, test = "Chisq")
-
+simulateResiduals(fittedModel = ModeloF_Amb, plot = T)
 
 
 
@@ -1503,9 +1512,10 @@ summary(ModeloA1_Amb_Multiple)
 
 drop1(ModeloA1_Amb_Multiple, test = "Chisq")
 
+simulateResiduals(fittedModel = ModeloA1_Amb_Multiple, plot = T)
 
 
-# MODELO B: Hortalizas
+# MODELO B: Frutales
 
 
 ModeloB1_Amb_Multiple <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
@@ -1523,7 +1533,7 @@ drop1(ModeloB1_Amb_Multiple, test = "Chisq")
 
 ModeloA2_Amb_int1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
-Anova(ModeloA2_Amb_int1)
+summary(ModeloA2_Amb_int1)
 
 drop1(ModeloA2_Amb_int1, test = "Chisq")
 
