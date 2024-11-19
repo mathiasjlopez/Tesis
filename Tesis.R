@@ -23,14 +23,18 @@ library(tidyverse)
 library(emmeans)
 library(ggplot2)
 library(DHARMa)
-library(psych)
 library(car)
+library(psych)
 library(GGally)
 library(effects)
 
 #---
 # 1) git add .
+<<<<<<< HEAD
 # 2) git commit -m "Actualizacion 5/11"
+=======
+# 2) git commit -m "Actualizacion 4/11"
+>>>>>>> 10c6556 (Actualizacion 18/11)
 # 3) git push
 
 #---
@@ -80,10 +84,10 @@ ENFR_temporal$Rango_edad <- factor(ENFR_temporal$Rango_edad)
 
 #NBI_CNA:
 
-NBI_CNA$Año_Edicion <- factor(NBI_CNA$Año_Edicion)
-NBI_CNA$Provincia <- factor(NBI_CNA$Provincia)
+NBI_CNA$Año_Edicion <- as.factor(NBI_CNA$Año_Edicion)
+NBI_CNA$Provincia <- as.factor(NBI_CNA$Provincia)
 NBI_CNA$Porcentaje_hogares_NBI <- as.numeric(NBI_CNA$Porcentaje_hogares_NBI)
-NBI_CNA$Cod_region <- factor(NBI_CNA$Cod_region)
+NBI_CNA$Cod_region <- as.factor(NBI_CNA$Cod_region)
 
 #---
 ## Transformamos Edad a numerico:
@@ -299,18 +303,6 @@ ENFR_t_NBI_CNA <- ENFR_t_NBI_CNA %>%
          Ha_Hort_x_TotalHa = Ha_Hort_x_TotalHa*100)
 
 
-str(ENFR_t_NBI_CNA)
-sum(is.na(ENFR_t_NBI_CNA))
-
-boxplot(ENFR_t_NBI_CNA$porcentaje_hogares_NBI)
-
-
-# Explorando un poquito los datos de esta nueva base:
-
-ENFR_t_NBI_CNA %>% 
-   select(Provincia, Año_Edicion, Cumple_No_Cumple_FyV, Porcentaje_hogares_NBI) %>% 
-   filter( Provincia == "Tierra del Fuego", Año_Edicion == 2009) # LOS VALORES DE PORCENTAJE NBI SE VAN A REPETIR TODAS  LAS VECES QUE EN UN AÑO SE REPITAN LOS ENCUESTADOS EN UNA PROVINCIA.
-
 ### Modificar la variable Procentaje de hogares nbi:
 # Calcular los puntos de corte para los terciles
 
@@ -319,15 +311,24 @@ print(cortes)
 # Crear la variable categórica de terciles
 
 ENFR_t_NBI_CNA$Terciles_NBI_provincial <- cut(ENFR_t_NBI_CNA$Porcentaje_hogares_NBI, 
-                                   breaks = cortes, 
-                                   labels = c("Bajo", "Medio", "Alto"), 
-                                   include.lowest = TRUE)
+                                              breaks = cortes, 
+                                              labels = c("Bajo", "Medio", "Alto"), 
+                                              include.lowest = TRUE)
 
 # Verificar la nueva variable
 table(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
 #---
+
+
+# Explorando un poquito los datos de esta nueva base:
+
+ENFR_t_NBI_CNA %>% 
+   select(Provincia, Año_Edicion, Cumple_No_Cumple_FyV, Porcentaje_hogares_NBI) %>% 
+   filter( Provincia == "Tierra del Fuego", Año_Edicion == 2009) # LOS VALORES DE PORCENTAJE NBI SE VAN A REPETIR TODAS  LAS VECES QUE EN UN AÑO SE REPITAN LOS ENCUESTADOS EN UNA PROVINCIA.
+
+
 ### Dataset para produccion NAF y ENFR: Para ver si da significativo
 
 ENFR_produ_NAF_09y13 <- ENFR_temporal %>%
@@ -349,11 +350,11 @@ str(ENFR_t_NBI_CNA$Terciles_NBI_provincial)
 
 #_______________________________________________________________________________
 
-# Exploratorio de CNA 09 y 18
+# Exploratorio grafico de CNA 09 y 18
 
 # Boxplot:
 # Hortalizas
-ggplot( data = subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., color = Año_Edicion)) +
+sggplot( data = subset(ENFR_t_NBI_CNA, Año_Edicion != 2013), mapping = aes(x = Año_Edicion, y = GRUPO.HORTALIZAS.ha., color = Año_Edicion)) +
   geom_boxplot()+
   geom_jitter(width = 0.2, size = 2, alpha = 0.6, color = "skyblue")
 
@@ -594,6 +595,87 @@ ggplot(, aes( x = Provincia)) +
   labs(fill = "Variable")+
   ggtitle("Cantidad de EAP/ha y de encuestados que no cumplieron (2018)")
 
+
+
+#_______________________________________________________________________________
+
+# Tabla de resumen de los datos:
+
+install.packages("gtsummary")
+library(gtsummary)
+
+# Armo un subset para aprender a usarlo:
+
+TR_practica <- ENFR_t_NBI_CNA %>% 
+  select(Año_Edicion, Provincia, Promedio_fv_Diario_Dic, Genero , Edad, Nivel_de_instrucción, Sit_laboral, Quintil_ingresos, Indice_NBI_hogar_dic ) %>% 
+  filter( Año_Edicion == 2018)
+
+# Por defecto:
+#   
+# Las variables categóricas se resumen con recuentos y porcentajes.
+# Las variables numéricas se resumen con media y desviación estándar.
+
+tabla_resumen1 <- TR_practica %>%
+  tbl_summary()
+tabla_resumen1
+
+
+tabla_resumen2 <- TR_practica %>% 
+  select(-Provincia) %>% 
+  tbl_summary(
+    by = Promedio_fv_Diario_Dic, missing = "no"
+  ) %>% 
+  modify_header(
+    update = list(
+      stat_1 ~ "**Si**",
+      stat_2 ~ "**No**"
+    )) %>% 
+  modify_spanning_header(
+    update = all_stat_cols() ~ "**Cumplomiento(CmFyV)**"
+  )
+                              
+
+tabla_resumen_gral <- ENFR_t_NBI_CNA %>% 
+  select(-X.x, -Region, -Provincia, -Porcentaje_población_NBI, -Porcentaje_hogares_NBI, -Ha_Frut_x_habitantes, -Ha_Hort_x_TotalHa, -Num_habitantes, -Ingreso_mensual_pesos_hogar, -Cod_region.y, - TOTAL, -Ha_Hort_x_10mil_habitantes, -Ha_Frut_x_TotalHa, -Promedio_fv_Diario_Dic, -Ha_Hort_x_habitantes, -Ha_Frut_x_10mil_habitantes) %>% 
+  tbl_summary(
+    by = Cumple_No_Cumple_FyV,
+    statistic = all_continuous() ~  "{mean} ({sd})" 
+  ) %>% 
+  bold_labels() %>% 
+  modify_header(
+    label = "**Variable**",
+    update = list(
+      stat_1 ~ "**Si**",
+      stat_2 ~ "**No**"
+    )) %>% 
+  modify_spanning_header(
+    update = all_stat_cols()  ~ "**Cumplomiento(CmFyV)**"
+  )
+
+tabla_resumen_gral
+
+# Para guardar en formato PNG:
+install.packages("flextable")
+install.packages("officer")
+library(gtsummary)
+library(flextable)
+library(officer)
+
+# Convierte la tabla a formato flextable y guárdala en un documento Word
+tabla_flex <-  as_flex_table(tabla_resumen_gral)
+
+# Guardar en Word
+doc <- read_docx() %>%
+  body_add_flextable(tabla_flex) %>%
+  print(target = "tabla_resumen_gral.docx")
+
+# Separar por variables:
+# Opciones:
+#          A nivel individual - Hogar y a nivel provincial.
+#         A nivel individual, hogar y a nivel provincial. 
+#         Ambas 2 anteriores pero que los años aparezcan como columna.
+
+
 #_________________________________________________________________________________________________________________________________________________________________________________
 #_________________________________________________________________________________________________________________________________________________________________________________
 
@@ -614,7 +696,7 @@ sum(is.na(ENFR_temporal$Año_Edicion))
 sum(is.na(ENFR_temporal$Cumple_No_Cumple_FyV))
 
 m1a <- glmer( Cumple_No_Cumple_FyV ~ Año_Edicion + (1 | Provincia )  , ENFR_temporal, family = binomial)
- 
+
 ## Supuestos:
 
 simulationOutput <- simulateResiduals(fittedModel = m1a, plot = T) # HACER UN RESAMPLEO, EL DHARMa NO SE BANCA TANTOS DATOS 
@@ -632,7 +714,6 @@ emmeans(m1a, pairwise ~ Año_Edicion) # Escala del PL
   # Comparacion en escala de la VR:
 emmeans(m1a, pairwise ~ Año_Edicion, type = "response") #escala de la VR. Con emmeans se pueden calcular Las medias estimadas (o probabilidades predichas) para cada nivel de la variable cualitativa, con los límites inferior y superior del intervalo de confianza para la probabilidad estimada.
 print(emm)
-
   # Intervalos de confianza: pasamos del estudio a la poblacion.
 confint(m1a)
 
@@ -643,9 +724,9 @@ confint(m1a)
  
 ### Modelos con NIVEL DE INSTRUCCION:
 
-table(ENFR_temporal$Nivel_de_instrucción) 
 
-m1b1 <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
+
+m1b <- glmer( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_temporal, family = binomial)
 
 ## Supuestos: 
 
@@ -666,6 +747,8 @@ emmeans(m1b, pairwise ~ Nivel_de_instrucción, type = "response")
 #-------------------------------------------------------------------------------
 
 ### Modelos de RANGO EDAD:
+
+
 
 m1c <- glmer( Cumple_No_Cumple_FyV ~  Rango_edad + (1 | Provincia ), ENFR_temporal , family = binomial)
 
@@ -703,7 +786,6 @@ emmeans(m1c, pairwise ~ Rango_edad, type = "response" )
 
 m1d <- glmer( Cumple_No_Cumple_FyV ~  Genero + (1|Provincia ), ENFR_temporal , family = binomial)
 
-
 ## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1d, plot = T)
  
@@ -724,6 +806,8 @@ emmeans(m1d, pairwise ~ Genero, type = "response")
 
 m1e <- glmer( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_temporal, family = binomial)
 
+
+
 ## Supuestos:
 simulationOutput <- simulateResiduals(fittedModel = m1e, plot = T)
 
@@ -740,6 +824,27 @@ emmeans( m1e, pairwise  ~ Sit_laboral, type = "response")
 
 #------------------------------------------------------------------------------- 
 
+### Modelos COBERTURA SALUD: ESTE NO LO IBAMOS A USAR
+m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
+
+
+
+## Supuestos:
+simulationOutput <- simulateResiduals(fittedModel = m1f, plot = T)
+
+## Salidas de analisis estadisticos:
+summary(m1f)
+Anova(m1f)
+
+## Comparaciones:
+
+# Escala del PL:
+pairs(emmeans(m1f, ~Cobertura_salud))
+
+# Escala de VR:
+pairs(emmeans(m1f, ~Cobertura_salud, type = "response"))
+
+#-------------------------------------------------------------------------------
 ### Modelos QUINTIL INGRESO:
 
 m1g <- glmer( Cumple_No_Cumple_FyV ~  Quintil_ingresos + (1|Provincia ), ENFR_temporal, family = binomial)
@@ -760,31 +865,12 @@ emmeans(m1g, pairwise ~ Quintil_ingresos)
 emmeans(m1g, pairwise ~ Quintil_ingresos, type = "response")
 #------------------------------------------------------------------------------- 
 
-### Modelos COBERTURA SALUD: ESTE NO LO IBAMOS A USAR
-m1f <- glmer( Cumple_No_Cumple_FyV ~  Cobertura_salud + (1|Provincia ), ENFR_temporal, family = binomial)
 
-m1f <- glmmTMB( Cumple_No_Cumple_FyV ~  Cobertura_salud, ENFR_temporal, family = binomial)
-
-## Supuestos:
-simulationOutput <- simulateResiduals(fittedModel = m1f, plot = T)
- 
-## Salidas de analisis estadisticos:
-summary(m1f)
-Anova(m1f)
- 
-## Comparaciones:
- 
-# Escala del PL:
-pairs(emmeans(m1f, ~Cobertura_salud))
- 
-# Escala de VR:
-pairs(emmeans(m1f, ~Cobertura_salud, type = "response"))
-
-#------------------------------------------------------------------------------
 
 ### Modelos simple con como V E F mas Provincia como V E A:
 m1h <- glmer( Cumple_No_Cumple_FyV ~ Indice_NBI_hogar_dic + (1|Provincia ), ENFR_temporal, family = binomial)
  
+
 ## Supuestos:
  simulationOutput <- simulateResiduals(fittedModel = m1h, plot = T)
  ## Salidas de analisis estadisticos:
@@ -1019,7 +1105,6 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
                                                                  ### MODELOS CON INTERACCION ###
 
 
-
 #--- 
 
 # Porcentaje_hogares_NBI es lineal al logit?
@@ -1037,7 +1122,7 @@ emmeans(M1g, pairwise ~ Porcentaje_hogar_NBI  , type = "response" )
 
 
 
-                                                          ### MODELO A: TRIPLE INTERACCION ###
+### MODELO A: TRIPLE INTERACCION ###
 
 ModeloA <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Año_Edicion*Quintil_ingresos + Rango_edad  + Nivel_de_instrucción  + Indice_NBI_hogar_dic  +(1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
@@ -1090,7 +1175,7 @@ emmeans(modeloB, pairwise ~ Genero, type = "response" )
 
 
 
-                                   ### MODELO B: con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion ### 
+### MODELO B: con interaccion  doble Genero*Quintil de ingreso y Genero*Año de edicion ### 
 
 
 #(LO CORRI SIN  "Terciles_NBI_provincial" YA QUE EL MODELO COMPLETO ESTABA TENIENDO PROBLEMAS DE CONVERGENCIA)
@@ -1108,7 +1193,7 @@ drop1(ModeloB, test="Chisq")
 AIC(ModeloB)
 
 
-  ###Interacciones###
+###Interacciones###
 
 # Genero | Quintil_ingresos: Comparaciones dentro de cada nivel de Quintil_ingresos: COMPARACIONES A PRIORI.
 # Genero * Quintil_ingresos: Todas las comparaciones cruzadas entre los niveles de Genero y Quintil_ingresos: COMPARACIONES A POSTERIORI.
@@ -1131,13 +1216,13 @@ plot(emmeans(ModeloB, pairwise ~ Quintil_ingresos|Año_Edicion), comparison = TR
 
 
 
-  ### Emmeans y comparaciones generales (con intervalos de confianza):
+### Emmeans y comparaciones generales (con intervalos de confianza):
 
-  # Quintil*Año:
+# Quintil*Año:
 em_IC_QuintilVSaño <- emmeans(ModeloB, revpairwise ~ Quintil_ingresos|Año_Edicion, type = "response")
 confint(contrast(em_IC_QuintilVSaño, method = "revpairwise", adjust = "none"), level = 0.95)
 
-  # Genero*Quintil:
+# Genero*Quintil:
 em_IC_generoVSquintil <- emmeans(ModeloB, pairwise ~ Genero|Quintil_ingresos, type = "response")
 confint(contrast(em_IC_generoVSquintil, method = "pairwise", adjust = "none"), level = 0.95)
 confint(em_IC_generoVSquintil, method = "pairwise", adjust = "none", level = 0.95)
@@ -1222,7 +1307,7 @@ ggplot( Emm_df, mapping = aes( x = Quintil_ingresos, y = prob, color = Año_Edic
     axis.title.y = element_text(size = 10, face = "plain") )
 
 
-          
+
 
 ### Colinealidad###
 
@@ -1251,7 +1336,7 @@ plot(efecto_genero_anio, main="Efecto Marginal: Quintil de ingresos y Año de Ed
 
 
 
-                               ### MODELO C con interaccion: Dos interacciones dobles (genero*Quintil y  genero*anio)###
+### MODELO C con interaccion: Dos interacciones dobles (genero*Quintil y  genero*anio)###
 
 ModeloC <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Genero*Año_Edicion + Rango_edad + Nivel_de_instrucción  + Indice_NBI_hogar_dic  + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial)
 
@@ -1295,7 +1380,7 @@ plot(efecto_genero_anio, main="Efecto Marginal:genero y Año de Edición")
 
 
 
-                                                            ### Colinealidad###
+### Colinealidad###
 car :: vif(ModeloC)
 
 
@@ -1303,7 +1388,7 @@ car :: vif(ModeloC)
 
 
 
-                                           ### MODELO D con interaccion Genero*Quintil de ingresos ###
+### MODELO D con interaccion Genero*Quintil de ingresos ###
 
 
 ModeloD <- glmmTMB(Cumple_No_Cumple_FyV ~ Genero*Quintil_ingresos + Rango_edad + Año_Edicion + Nivel_de_instrucción  + Indice_NBI_hogar_dic  + (1|Provincia ), ENFR_t_NBI_CNA, family = binomial) 
@@ -1361,7 +1446,7 @@ car :: vif(ModeloD)
 
 #-------------------------------------------------------------------------------
 
-                                                                 ### Comparacion entre Modelos ####
+### Comparacion entre Modelos ####
 AIC(ModeloA, ModeloB, ModeloC, ModeloD)
 anova(modeloA, modeloB, modeloC, modeloD)
 
@@ -1409,6 +1494,7 @@ efecto_genero_quintil <- allEffects(Mod1_interaccion, focus = "Genero:Quintil_in
 plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos")
 
 
+
 #-------------------------------------------------------------------------------
 #_________________________________________________________________________________________________________________________________________________________________________________
 
@@ -1418,12 +1504,69 @@ plot(efecto_genero_quintil, main="Efecto Marginal: Género y Quintil de Ingresos
 
 
 
-                                                          ### Segunda parte: AMBIENTAL (Ojala sea AMBIENTAL + TEMPORAL)
+                                                                 ### Segunda parte: AMBIENTAL ###
 
 
 
 #_______________________________________________________________________________
 
+# Modelos simples para variables provinciales e individuales para 2009 y 2018: YA QUE SACAMOS UNA EDICION PODRIA LLEGAR A DAR ALGO DIFERENTE -> Las significancias dan, similare. Para estos modelos sin 2013, los estimados y IC se hacen un poco mas chicos.
+
+
+# Subset sin 2013:
+ENFR_T_NBI_CNA_sin2013 <- ENFR_t_NBI_CNA %>% 
+  filter(Año_Edicion != 2013 )
+
+### Modelo de AÑO EDICION:
+
+m1a_amb <- glmmTMB( Cumple_No_Cumple_FyV  ~ Año_Edicion + (1 | Provincia )  , ENFR_T_NBI_CNA_sin2013, family = binomial)
+Anova(m1a_amb) 
+emmeans(m1a_amb, pairwise ~ Año_Edicion, type = "response")
+
+### Modelo Nivel de instruccion:
+
+m1b1_amb <- glmmTMB( Cumple_No_Cumple_FyV ~ Nivel_de_instrucción + (1 | Provincia ), ENFR_T_NBI_CNA_sin2013, family = binomial)
+Anova(m1b1_amb)
+emmeans(m1b1_amb, pairwise ~ Nivel_de_instrucción )
+
+### Modelo Rango edad
+
+m1c_amb <- glmmTMB( Cumple_No_Cumple_FyV ~  Rango_edad + (1 | Provincia ), ENFR_T_NBI_CNA_sin2013 , family = binomial)
+Anova(m1c_amb)
+emmeans(m1c_amb, pairwise ~ Rango_edad )
+
+
+### Modelo Genero
+
+m1d_amb <- glmmTMB( Cumple_No_Cumple_FyV ~  Genero + (1|Provincia ), ENFR_T_NBI_CNA_sin2013 , family = binomial)
+Anova(m1d_amb)
+emmeans(m1d_amb, pairwise ~ Genero )
+
+
+### Modelo Situacion laboral: 
+m1e_amb <- glmmTMB( Cumple_No_Cumple_FyV ~  Sit_laboral + (1|Provincia ), ENFR_T_NBI_CNA_sin2013, family = binomial)
+Anova(m1e_amb)
+emmeans(m1e_amb, pairwise  ~ Sit_laboral)
+
+### Modelo Cobertura de salud
+
+m1f_amb <- glmmTMB( Cumple_No_Cumple_FyV ~  Cobertura_salud, ENFR_T_NBI_CNA_sin2013, family = binomial)
+Anova(m1f_amb)
+emmeans(m1f_amb, ~Cobertura_salud, type = "response")
+
+### Modelo NBI hogar
+m1h_amb <- glmmTMB( Cumple_No_Cumple_FyV ~ Indice_NBI_hogar_dic + (1|Provincia ), ENFR_T_NBI_CNA_sin2013, family = binomial)
+Anova(m1h_amb)
+emmeans(m1h_amb, pairwise ~ Indice_NBI_hogar_dic, type = "response")
+
+### Modelo NBI Provincial
+m1i_amb <- glmmTMB( Cumple_No_Cumple_FyV ~ Terciles_NBI_provincial + (1|Provincia ), ENFR_T_NBI_CNA_sin2013, family = binomial) # Es el unico que no da significativo  0.0602
+Anova(m1i_amb)
+emmeans(m1i_amb, pairwise ~ Terciles_NBI_provincial, type = "response")
+
+
+
+#_______________________________________________________________________________
 
 ### MODELOS AMBIENTALES ###
 
@@ -1501,14 +1644,75 @@ simulateResiduals(fittedModel = ModeloF_Amb, plot = T)
 
 
 
-                                                                     ### MODELOS MULTIPLES ###
+                                                                     ### MODELOS MULTIPLES: Aditivos ###
 
 # MODELO A: Hortalizas
 
 
 ModeloA1_Amb_Multiple <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
+<<<<<<< HEAD
 summary(ModeloA1_Amb_Multiple)
+=======
+summary(ModeloA_Amb_Multiple1)
+
+drop1(ModeloA1_Amb, test = "Chisq")
+
+
+
+ModeloA_Amb_Multiple2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero  + (1|Provincia ), data = ENFR_t_NBI_CNA, 
+                                 family = binomial() )
+
+summary(ModeloA_Amb_Multiple2)
+
+drop1(ModeloA1_Amb_Multiple2, test = "Chisq")
+
+
+
+ModeloA_Amb_Multiple3 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero + Rango_edad +(1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA")), family = binomial() )
+
+Anova(ModeloA_Amb_Multiple3)
+
+drop1(ModeloA_Amb_Multiple3, test = "Chisq") # Para usar drop1 hay que descartar todos los NA que se tengan en las variables puesta en el modelo -> Hortalizas: año 2013 y Provincia "CABA".
+
+
+
+ModeloA_Amb_Multiple4 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA")), family = binomial() )
+
+Anova(ModeloA_Amb_Multiple4)
+
+drop1(ModeloA_Amb_Multiple4, test = "Chisq")
+
+
+
+ModeloA_Amb_Multiple5 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+Anova(ModeloA_Amb_Multiple5)
+table(ENFR_t_NBI_CNA$Quintil_ingresos, useNA = "ifany")
+
+#       1     2     3     4     5  <NA> 
+#   21166 18915 17928 17942 18516   291 Voy a omitir los NA pero hablar con Sole.
+
+drop1(ModeloA_Amb_Multiple5, test = "Chisq")
+
+
+
+ModeloA_Amb_Multiple6 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA_Amb_Multiple6)
+
+drop1(ModeloA_Amb_Multiple6, test = "Chisq")
+
+
+
+ModeloA_Amb_Multiple7 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA_Amb_Multiple7)
+
+drop1(ModeloA_Amb_Multiple7, test = "Chisq")
+>>>>>>> 10c6556 (Actualizacion 18/11)
 
 drop1(ModeloA1_Amb_Multiple, test = "Chisq")
 
@@ -1518,11 +1722,205 @@ simulateResiduals(fittedModel = ModeloA1_Amb_Multiple, plot = T)
 # MODELO B: Frutales
 
 
+<<<<<<< HEAD
 ModeloB1_Amb_Multiple <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
 
 summary(ModeloB1_Amb_Multiple)
 
 drop1(ModeloB1_Amb_Multiple, test = "Chisq")
+=======
+ModeloB_Amb_Multiple1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.  + Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB_Amb_Multiple1)
+
+drop1(ModeloB_Amb_Multiple1, test = "Chisq")
+
+
+
+ModeloB_Amb_Multiple2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero  + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB_Amb_Multiple2)
+
+drop1(ModeloB_Amb_Multiple2, test = "Chisq")
+
+
+
+ModeloB_Amb_Multiple3 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero + Rango_edad +(1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA")), family = binomial() )
+
+Anova(ModeloB_Amb_Multiple3)
+
+drop1(ModeloB_Amb_Multiple3, test = "Chisq")
+
+
+
+ModeloB_Amb_Multiple4<- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA")), family = binomial() )
+
+Anova(ModeloB_Amb_Multiple4)
+
+drop1(ModeloB_Amb_Multiple4, test = "Chisq")
+
+
+
+ModeloB_Amb_Multiple5 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+Anova(ModeloB_Amb_Multiple5)
+
+drop1(ModeloB_Amb_Multiple5, test = "Chisq")
+
+
+
+ModeloB_Amb_Multiple6 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+Anova(ModeloB_Amb_Multiple6)
+
+drop1(ModeloB_Amb_Multiple6, test = "Chisq")
+
+
+ModeloB_Amb_Multiple7 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha. + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloB_Amb_Multiple7)
+
+drop1(ModeloB_Amb_Multiple7, test = "Chisq")
+
+
+
+
+                                                                     ### MODELOS DE INTERACCION ###
+
+### MODELO A: Hortalizas)
+
+ModeloA2_Amb_Int <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013)), family = binomial() )
+
+summary(ModeloA2_Amb_Int)
+
+drop1(ModeloA2_Amb_Int, test = "Chisq")
+
+media_hortalizas_ha <- mean((ENFR_t_NBI_CNA %>%  filter(Año_Edicion !=2013))$GRUPO.HORTALIZAS.ha., na.rm = TRUE)
+
+emmeans(ModeloA2_Amb_Int, specs = "Año_Edicion", at = list( GRUPO.HORTALIZAS.ha. = media_hortalizas_ha) , type = "response" )
+
+
+# Modelos  completos:
+
+# Interaccion Hortalizas*Año_edicion
+
+ModeloA2_Amb_Int1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA2_Amb_Int1)
+
+drop1(ModeloA2_Amb_Int1, test = "Chisq")
+
+
+# Interaccion Hortalizas*Quintiil ingreso
+
+ModeloA2_Amb_Int2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Quintil_ingresos + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción  + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA2_Amb_Int2)
+
+drop1(ModeloA2_Amb_Int2, test = "Chisq")
+
+
+# Interaccion Hortalizas*genero
+
+ModeloA2_Amb_Int3 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Genero + Año_Edicion  + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA2_Amb_Int3)
+
+drop1(ModeloA2_Amb_Int3, test = "Chisq")
+
+
+
+# Interaccion Hortalizas*Porcentaje hogares NBI
+
+ModeloA2_Amb_Int4 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Porcentaje_hogares_NBI + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos  + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloA2_Amb_Int4)
+
+drop1(ModeloA2_Amb_Int4, test = "Chisq")
+
+
+# Interaccion Hortalizas*Quintiil ingreso*Año edicion
+
+# ModeloA2_Amb_Int5 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.HORTALIZAS.ha.*Quintil_ingresos*Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción  + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+# 
+# 
+# Anova(ModeloA2_Amb_Int5)
+# 
+# drop1(ModeloA2_Amb_Int5, test = "Chisq")
+# 
+
+
+
+
+
+
+### MODELO B: Frutales
+
+
+ModeloB2_Amb_Int <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Año_Edicion + (1|Provincia ), data = ENFR_t_NBI_CNA, family = binomial() )
+
+summary(ModeloB2_Amb_Int)
+
+drop1(ModeloA2_Amb_Int, test = "Chisq")
+
+
+# Modelos  completos:
+
+# Interaccion Frutales*Año_edicion
+
+ModeloB2_Amb_Int1 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloB2_Amb_Int1)
+
+drop1(ModeloB2_Amb_Int1, test = "Chisq")
+
+
+# Interaccion Frutales*Quintil ingreso
+
+ModeloB2_Amb_Int2 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Quintil_ingresos + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción  + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloB2_Amb_Int2)
+
+drop1(ModeloB2_Amb_Int2, test = "Chisq")
+
+
+# Interaccion Frutales*Año_edicion
+
+ModeloB2_Amb_Int3 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Genero + Año_Edicion + Rango_edad + Nivel_de_instrucción + Quintil_ingresos + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloB2_Amb_Int3)
+
+drop1(ModeloB2_Amb_Int3, test = "Chisq")
+
+
+# Interaccion Frutales*Porcentaje hogares NBI
+
+ModeloB2_Amb_Int4 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Porcentaje_hogares_NBI + Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción + Quintil_ingresos  + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+
+
+Anova(ModeloB2_Amb_Int4)
+
+drop1(ModeloB2_Amb_Int4, test = "Chisq")
+
+
+# Interaccion Frutales*Quintil ingreso * Año edicion: TIPLE
+
+# ModeloB2_Amb_Int5 <- glmmTMB(Cumple_No_Cumple_FyV ~ GRUPO.FRUTALES.ha.*Quintil_ingresos*Año_Edicion + Genero + Rango_edad + Nivel_de_instrucción  + Porcentaje_hogares_NBI + Porcentaje_hogares_NBI + (1|Provincia ), data = (ENFR_t_NBI_CNA %>% filter(Año_Edicion != 2013 & Provincia != "CABA" & !is.na(Quintil_ingresos))), family = binomial() )
+# 
+# 
+# Anova(ModeloB2_Amb_Int5)
+# 
+# drop1(ModeloB2_Amb_Int5, test = "Chisq")
+
+>>>>>>> 10c6556 (Actualizacion 18/11)
 
 
                                                                      ### MODELOS DE INTERACCION ###
